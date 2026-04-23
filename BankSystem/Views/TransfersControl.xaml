@@ -1,0 +1,125 @@
+﻿<UserControl x:Class="BankSystem.Views.TransfersControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Информация о клиенте -->
+        <Border Grid.Row="0" Background="#E8F4FD" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="👤" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock x:Name="txtClientName" Text="Выберите клиента" 
+                               FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="txtClientInfo" Text="" 
+                               FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="2" x:Name="btnSelectClient" Content="Сменить клиента" 
+                        Width="110" Height="30" Background="#3498DB" Foreground="White"
+                        Click="BtnSelectClient_Click" Cursor="Hand"/>
+            </Grid>
+        </Border>
+
+        <!-- Форма перевода -->
+        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Форма перевода" 
+                           FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
+
+                <TextBlock Grid.Row="1" Text="Со счета:" VerticalAlignment="Center"/>
+                <ComboBox x:Name="cmbFromAccount" Grid.Row="1" Grid.Column="1" Height="35" 
+                          Margin="0,5" DisplayMemberPath="DisplayName"
+                          SelectionChanged="CmbFromAccount_SelectionChanged"/>
+
+                <TextBlock Grid.Row="2" Text="На счет:" VerticalAlignment="Center"/>
+                <ComboBox x:Name="cmbToAccount" Grid.Row="2" Grid.Column="1" Height="35" 
+                          Margin="0,5" DisplayMemberPath="DisplayName"/>
+
+                <TextBlock Grid.Row="3" Text="Сумма:" VerticalAlignment="Center"/>
+                <TextBox x:Name="txtAmount" Grid.Row="3" Grid.Column="1" Height="35" 
+                         Margin="0,5" Text="0" TextAlignment="Right"/>
+
+                <TextBlock Grid.Row="4" Text="Назначение:" VerticalAlignment="Center"/>
+                <TextBox x:Name="txtDescription" Grid.Row="4" Grid.Column="1" Height="35" Margin="0,5"/>
+
+                <TextBlock x:Name="txtCurrentBalance" Grid.Row="5" Grid.Column="1" 
+                           Text="" Foreground="Gray" FontSize="12" Margin="5,0,0,0" 
+                           Visibility="Collapsed" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+            <Button x:Name="btnTransfer" Content="ВЫПОЛНИТЬ ПЕРЕВОД" Width="180" Height="40"
+                    Background="#27AE60" Foreground="White" FontWeight="Bold"
+                    Click="BtnTransfer_Click" Cursor="Hand"/>
+            <Button x:Name="btnClear" Content="ОЧИСТИТЬ" Width="100" Height="40" Margin="10,0,0,0"
+                    Background="#95A5A6" Foreground="White" Click="BtnClear_Click" Cursor="Hand"/>
+        </StackPanel>
+
+        <!-- История -->
+        <Border Grid.Row="3" Background="White" CornerRadius="5" Margin="0,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="ИСТОРИЯ ОПЕРАЦИЙ" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                <DataGrid x:Name="dgHistory" Grid.Row="1" AutoGenerateColumns="False" 
+                          IsReadOnly="True" FontSize="11">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Дата" Binding="{Binding Date, StringFormat=dd.MM.yyyy HH:mm}" Width="120"/>
+                        <DataGridTextColumn Header="Тип" Binding="{Binding Type}" Width="80"/>
+                        <DataGridTextColumn Header="Со счета" Binding="{Binding FromAccount}" Width="150"/>
+                        <DataGridTextColumn Header="На счет" Binding="{Binding ToAccount}" Width="150"/>
+                        <DataGridTextColumn Header="Сумма" Width="100">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="Amount" StringFormat="{}{0:N2} ₽"/>
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="80"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="txtError" Grid.Row="1" Text="" Foreground="#E74C3C" 
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom" 
+                   Margin="0,0,0,10" Visibility="Collapsed" FontSize="12"/>
+
+        <Border Grid.RowSpan="4" Background="#80FFFFFF" x:Name="loadingOverlay" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="Загрузка..." FontSize="14" Foreground="#2C3E50"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

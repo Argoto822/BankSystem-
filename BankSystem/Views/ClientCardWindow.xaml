@@ -1,0 +1,91 @@
+﻿<Window x:Class="BankSystem.Views.ClientCardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Карточка клиента" Height="550" Width="550"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+
+    <Grid Margin="20" Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="КАРТОЧКА КЛИЕНТА" FontSize="18" FontWeight="Bold" 
+                   Foreground="#2C3E50" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="ФИО:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtFullName" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Тип клиента:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtType" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Паспорт/ИНН:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtPassport" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Телефон:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtPhone" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Email:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtEmail" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Адрес:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtAddress" Width="380" Height="50" TextWrapping="Wrap" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="Дата регистрации:" Width="100" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtRegDate" Width="380" IsReadOnly="True"/>
+        </StackPanel>
+
+        <!-- Статистика -->
+        <Border Grid.Row="8" Background="#F8F9FA" CornerRadius="5" Margin="0,15,0,0" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="Счетов" Foreground="Gray" FontSize="11"/>
+                    <TextBlock x:Name="txtAccountCount" FontSize="18" FontWeight="Bold" Foreground="#2C3E50"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock Text="Общий баланс" Foreground="Gray" FontSize="11"/>
+                    <TextBlock x:Name="txtTotalBalance" FontSize="18" FontWeight="Bold" Foreground="#27AE60"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <TextBlock Text="Макс. баланс" Foreground="Gray" FontSize="11"/>
+                    <TextBlock x:Name="txtMaxBalance" FontSize="18" FontWeight="Bold" Foreground="#F39C12"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Center" 
+                    VerticalAlignment="Bottom" Margin="0,0,0,0">
+            <Button x:Name="btnClose" Content="ЗАКРЫТЬ" Width="100" Height="35"
+                    Background="#2C3E50" Foreground="White" Click="BtnClose_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
