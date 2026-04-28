@@ -176,6 +176,7 @@
     <Compile Include="Models\ClientStats.cs" />
     <Compile Include="Models\LogEntry.cs" />
     <Compile Include="Models\Role.cs" />
+    <Compile Include="Models\Session.cs" />
     <Compile Include="Models\Transaction.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Roles.cs">
@@ -220,6 +221,9 @@
     </Compile>
     <Compile Include="Views\ClientSelectionDialog.xaml.cs">
       <DependentUpon>ClientSelectionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\DepositDialog.xaml.cs">
+      <DependentUpon>DepositDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
@@ -267,6 +271,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ClientSelectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\DepositDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -339,8 +347,8 @@
   <ItemGroup>
     <Content Include="Model1.Context.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Model1.Context.cs</LastGenOutput>
       <DependentUpon>Model1.edmx</DependentUpon>
+      <LastGenOutput>Model1.Context.cs</LastGenOutput>
     </Content>
     <Content Include="Model1.tt">
       <Generator>TextTemplatingFileGenerator</Generator>

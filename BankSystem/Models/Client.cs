@@ -13,7 +13,7 @@ namespace BankSystem.Models
         public DateTime RegistrationDate { get; set; } = DateTime.Now;
         public bool IsActive { get; set; } = true;
         public string Notes { get; set; }
-        public int? CreatedBy { get; set; }
+        public new int? CreatedBy { get; set; }
         public bool IsDeleted { get; set; }
     }
 }

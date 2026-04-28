@@ -30,8 +30,6 @@ namespace BankSystem
         public System.DateTime registration_date { get; set; }
         public bool is_active { get; set; }
         public Nullable<int> created_by { get; set; }
-        public bool is_deleted { get; set; }
-        public Nullable<System.DateTime> updated_at { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Accounts> Accounts { get; set; }

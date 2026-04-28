@@ -4,17 +4,21 @@ namespace BankSystem.Services
 {
     public class SessionService
     {
-        public User CurrentUser { get; private set; }
+        private User _currentUser;
 
-        public void SetCurrentUser(User user) => CurrentUser = user;
+        public User CurrentUser
+        {
+            get => _currentUser;
+            set => _currentUser = value;
+        }
 
-        public bool IsAuthenticated => CurrentUser != null;
+        public bool IsAuthenticated => _currentUser != null;
+        public bool IsAdmin => _currentUser != null && _currentUser.RoleName == "Администратор";
+        public bool IsOperator => _currentUser != null && _currentUser.RoleName == "Оператор";
 
-        public bool IsAdmin => CurrentUser?.RoleName == "Администратор";
-        public bool IsOperator => CurrentUser?.RoleName == "Оператор";
-        public bool IsCashier => CurrentUser?.RoleName == "Кассир";
-        public bool IsAnalyst => CurrentUser?.RoleName == "Аналитик";
-
-        public void Logout() => CurrentUser = null;
+        public void Clear()
+        {
+            _currentUser = null;
+        }
     }
 }

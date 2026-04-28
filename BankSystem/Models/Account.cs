@@ -4,7 +4,6 @@ namespace BankSystem.Models
 {
     public class Account : BaseEntity
     {
-        public int Id { get; set; }
         public string AccountNumber { get; set; }
         public string AccountType { get; set; }
         public string AccountName { get; set; }
@@ -18,7 +17,7 @@ namespace BankSystem.Models
         public DateTime? ClosingDate { get; set; }
         public decimal? InterestRate { get; set; }
         public decimal? OverdraftLimit { get; set; }
-        public int? CreatedBy { get; set; }
+        public new int? CreatedBy { get; set; }
         public bool IsDeleted { get; set; }
 
         private string _displayName;
@@ -27,17 +26,17 @@ namespace BankSystem.Models
         {
             get
             {
-                // Если _displayName не установлен, формируем автоматически
                 if (string.IsNullOrEmpty(_displayName))
                 {
-                    return $"{AccountName} - {AccountNumber} - {Balance:N2} ₽";
+                    return $"{AccountName} - {AccountNumber} - {Balance:N2} {Currency}";
                 }
                 return _displayName;
             }
             set => _displayName = value;
         }
 
-        // Альтернативный вариант с автоматическим вычислением
-        public string FullDisplayName => $"{AccountName} - {AccountNumber} - {Balance:N2} ₽";
+        public string FullDisplayName => $"{AccountName} - {AccountNumber} - {Balance:N2} {Currency}";
+
+        public string ShortDisplayName => $"{AccountName} - {Balance:N2} {Currency}";
     }
 }

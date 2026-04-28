@@ -23,7 +23,6 @@ namespace BankSystem
         public int id_role { get; set; }
         public string name { get; set; }
         public string description { get; set; }
-        public bool is_deleted { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Users> Users { get; set; }

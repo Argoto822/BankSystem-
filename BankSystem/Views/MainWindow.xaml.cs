@@ -1,88 +1,109 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
+using System.Windows.Controls;
+using BankSystem.Views;
 
 namespace BankSystem.Views
 {
     public partial class MainWindow : Window
     {
+        private UserControl _currentControl;
+
         public MainWindow()
         {
             InitializeComponent();
 
+            // Устанавливаем информацию о пользователе
             if (App.Session.CurrentUser != null)
             {
-                txtUser.Text = $"Пользователь: {App.Session.CurrentUser.Login} ({App.Session.CurrentUser.RoleName})";
-
-                if (App.Session.IsAdmin)
-                {
-                    btnAdmin.Visibility = Visibility.Visible;
-                    btnReports.Visibility = Visibility.Visible;
-                }
-                else if (App.Session.IsAnalyst)
-                {
-                    btnReports.Visibility = Visibility.Visible;
-                    btnClients.Visibility = Visibility.Collapsed;
-                    btnAccounts.Visibility = Visibility.Collapsed;
-                    btnTransfers.Visibility = Visibility.Collapsed;
-                }
-                else if (App.Session.IsCashier)
-                {
-                    btnTransfers.Visibility = Visibility.Visible;
-                    btnClients.Visibility = Visibility.Collapsed;
-                    btnAccounts.Visibility = Visibility.Collapsed;
-                }
-                else if (App.Session.IsOperator)
-                {
-                    btnClients.Visibility = Visibility.Visible;
-                    btnAccounts.Visibility = Visibility.Visible;
-                    btnTransfers.Visibility = Visibility.Visible;
-                }
+                txtUserInfo.Text = $"{App.Session.CurrentUser.Login} ({App.Session.CurrentUser.RoleName})";
             }
 
-            LoadClientsPage();
+            // Загружаем клиентов по умолчанию
+            ShowClients();
         }
 
-        private void LoadClientsPage()
+        private void ShowClients()
         {
-            ContentArea.Content = new ClientsControl();
-            txtStatus.Text = "Управление клиентами";
+            _currentControl = new ClientsControl();
+            MainContent.Content = _currentControl;
         }
 
-        private void LoadAccountsPage()
+        private void ShowAccounts()
         {
-            ContentArea.Content = new AccountsControl();
-            txtStatus.Text = "Управление счетами";
+            _currentControl = new AccountsControl();
+            MainContent.Content = _currentControl;
         }
 
-        private void LoadTransfersPage()
+        private void ShowTransfers()
         {
-            ContentArea.Content = new TransfersControl();
-            txtStatus.Text = "Платежи и переводы";
+            _currentControl = new TransfersControl();
+            MainContent.Content = _currentControl;
         }
 
-        private void LoadReportsPage()
+        private void ShowReports()
         {
-            ContentArea.Content = new ReportsControl();
-            txtStatus.Text = "Формирование отчетов";
+            _currentControl = new ReportsControl();
+            MainContent.Content = _currentControl;
         }
 
-        private void LoadAdminPage()
+        private void ShowAdmin()
         {
-            ContentArea.Content = new AdminControl();
-            txtStatus.Text = "Администрирование";
+            // Проверяем права доступа
+            if (App.Session.CurrentUser?.RoleName == "Администратор")
+            {
+                _currentControl = new AdminControl();
+                MainContent.Content = _currentControl;
+            }
+            else
+            {
+                MessageBox.Show("У вас нет прав доступа к разделу администрирования!",
+                    "Доступ запрещен", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
-        private void BtnClients_Click(object sender, RoutedEventArgs e) => LoadClientsPage();
-        private void BtnAccounts_Click(object sender, RoutedEventArgs e) => LoadAccountsPage();
-        private void BtnTransfers_Click(object sender, RoutedEventArgs e) => LoadTransfersPage();
-        private void BtnReports_Click(object sender, RoutedEventArgs e) => LoadReportsPage();
-        private void BtnAdmin_Click(object sender, RoutedEventArgs e) => LoadAdminPage();
+        private void BtnClients_Click(object sender, RoutedEventArgs e)
+        {
+            ShowClients();
+        }
+
+        private void BtnAccounts_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAccounts();
+        }
+
+        private void BtnTransfers_Click(object sender, RoutedEventArgs e)
+        {
+            ShowTransfers();
+        }
+
+        private void BtnReports_Click(object sender, RoutedEventArgs e)
+        {
+            ShowReports();
+        }
+
+        private void BtnAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdmin();
+        }
 
         private void BtnLogout_Click(object sender, RoutedEventArgs e)
         {
-            App.Session.Logout();
-            var loginWindow = new LoginWindow();
-            loginWindow.Show();
-            Close();
+            var result = MessageBox.Show("Вы уверены, что хотите выйти из системы?",
+                "Выход", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Очищаем сессию
+                App.Session.CurrentUser = null;
+
+                // Открываем окно входа
+                var loginWindow = new LoginWindow();
+                loginWindow.Show();
+
+                // Закрываем главное окно
+                this.Close();
+            }
         }
     }
 }

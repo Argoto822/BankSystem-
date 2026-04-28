@@ -24,7 +24,6 @@ namespace BankSystem
         public string status { get; set; }
         public Nullable<decimal> commission { get; set; }
         public Nullable<int> created_by { get; set; }
-        public bool is_deleted { get; set; }
     
         public virtual Accounts Accounts { get; set; }
         public virtual Accounts Accounts1 { get; set; }

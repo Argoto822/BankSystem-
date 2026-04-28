@@ -24,15 +24,13 @@ namespace BankSystem
         public int id_account { get; set; }
         public string account_number { get; set; }
         public string account_type { get; set; }
+        public string account_name { get; set; }
         public int id_client { get; set; }
         public decimal balance { get; set; }
         public string currency { get; set; }
         public string status { get; set; }
         public System.DateTime opening_date { get; set; }
         public Nullable<int> created_by { get; set; }
-        public string account_name { get; set; }
-        public bool is_deleted { get; set; }
-        public Nullable<System.DateTime> updated_at { get; set; }
     
         public virtual Clients Clients { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

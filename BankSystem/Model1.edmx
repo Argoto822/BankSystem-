@@ -12,15 +12,13 @@
           <Property Name="id_account" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
           <Property Name="account_number" Type="nvarchar" MaxLength="20" Nullable="false" />
           <Property Name="account_type" Type="nvarchar" MaxLength="20" Nullable="false" />
+          <Property Name="account_name" Type="nvarchar" MaxLength="100" />
           <Property Name="id_client" Type="int" Nullable="false" />
           <Property Name="balance" Type="decimal" Precision="15" Scale="2" Nullable="false" />
           <Property Name="currency" Type="nvarchar" MaxLength="3" Nullable="false" />
           <Property Name="status" Type="nvarchar" MaxLength="20" Nullable="false" />
           <Property Name="opening_date" Type="date" Nullable="false" />
           <Property Name="created_by" Type="int" />
-          <Property Name="account_name" Type="nvarchar" MaxLength="100" />
-          <Property Name="is_deleted" Type="bit" Nullable="false" />
-          <Property Name="updated_at" Type="datetime" />
         </EntityType>
         <EntityType Name="Clients">
           <Key>
@@ -36,8 +34,6 @@
           <Property Name="registration_date" Type="date" Nullable="false" />
           <Property Name="is_active" Type="bit" Nullable="false" />
           <Property Name="created_by" Type="int" />
-          <Property Name="is_deleted" Type="bit" Nullable="false" />
-          <Property Name="updated_at" Type="datetime" />
         </EntityType>
         <EntityType Name="Logs">
           <Key>
@@ -58,7 +54,6 @@
           <Property Name="id_role" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
           <Property Name="name" Type="nvarchar" MaxLength="50" Nullable="false" />
           <Property Name="description" Type="nvarchar(max)" />
-          <Property Name="is_deleted" Type="bit" Nullable="false" />
         </EntityType>
         <EntityType Name="Transactions">
           <Key>
@@ -74,7 +69,6 @@
           <Property Name="status" Type="nvarchar" MaxLength="20" Nullable="false" />
           <Property Name="commission" Type="decimal" Precision="15" Scale="2" />
           <Property Name="created_by" Type="int" />
-          <Property Name="is_deleted" Type="bit" Nullable="false" />
         </EntityType>
         <EntityType Name="Users">
           <Key>
@@ -88,8 +82,6 @@
           <Property Name="is_active" Type="bit" Nullable="false" />
           <Property Name="created_at" Type="datetime" Nullable="false" />
           <Property Name="last_login" Type="datetime" />
-          <Property Name="is_deleted" Type="bit" Nullable="false" />
-          <Property Name="updated_at" Type="datetime" />
         </EntityType>
         <Association Name="FK_Accounts_Client">
           <End Role="Clients" Type="Self.Clients" Multiplicity="1" />
@@ -154,6 +146,18 @@
           <Parameter Name="new_client_id" Type="int" Mode="InOut" />
           <Parameter Name="new_account_number" Type="nvarchar" Mode="InOut" />
         </Function>
+        <Function Name="sp_CreateClientWithTwoAccounts" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="client_type" Type="nvarchar" Mode="In" />
+          <Parameter Name="full_name" Type="nvarchar" Mode="In" />
+          <Parameter Name="passport_inn" Type="nvarchar" Mode="In" />
+          <Parameter Name="phone" Type="nvarchar" Mode="In" />
+          <Parameter Name="email" Type="nvarchar" Mode="In" />
+          <Parameter Name="address" Type="nvarchar(max)" Mode="In" />
+          <Parameter Name="user_id" Type="int" Mode="In" />
+          <Parameter Name="new_client_id" Type="int" Mode="InOut" />
+          <Parameter Name="account_number1" Type="nvarchar" Mode="InOut" />
+          <Parameter Name="account_number2" Type="nvarchar" Mode="InOut" />
+        </Function>
         <Function Name="sp_TransferMoney" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
           <Parameter Name="from_account" Type="nvarchar" Mode="In" />
           <Parameter Name="to_account" Type="nvarchar" Mode="In" />
@@ -196,6 +200,7 @@
           <Property Name="id_account" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
           <Property Name="account_number" Type="String" MaxLength="20" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="account_type" Type="String" MaxLength="20" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="account_name" Type="String" MaxLength="100" FixedLength="false" Unicode="true" />
           <Property Name="id_client" Type="Int32" Nullable="false" />
           <Property Name="balance" Type="Decimal" Precision="15" Scale="2" Nullable="false" />
           <Property Name="currency" Type="String" MaxLength="3" FixedLength="false" Unicode="true" Nullable="false" />
@@ -205,9 +210,6 @@
           <NavigationProperty Name="Clients" Relationship="Self.FK_Accounts_Client" FromRole="Accounts" ToRole="Clients" />
           <NavigationProperty Name="Transactions" Relationship="Self.FK_Transactions_FromAccount" FromRole="Accounts" ToRole="Transactions" />
           <NavigationProperty Name="Transactions1" Relationship="Self.FK_Transactions_ToAccount" FromRole="Accounts" ToRole="Transactions" />
-          <Property Name="account_name" Type="String" MaxLength="100" FixedLength="false" Unicode="true" />
-          <Property Name="is_deleted" Type="Boolean" Nullable="false" />
-          <Property Name="updated_at" Type="DateTime" Precision="3" />
         </EntityType>
         <EntityType Name="Clients">
           <Key>
@@ -224,8 +226,6 @@
           <Property Name="is_active" Type="Boolean" Nullable="false" />
           <Property Name="created_by" Type="Int32" />
           <NavigationProperty Name="Accounts" Relationship="Self.FK_Accounts_Client" FromRole="Clients" ToRole="Accounts" />
-          <Property Name="is_deleted" Type="Boolean" Nullable="false" />
-          <Property Name="updated_at" Type="DateTime" Precision="3" />
         </EntityType>
         <EntityType Name="Roles">
           <Key>
@@ -235,7 +235,6 @@
           <Property Name="name" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="description" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
           <NavigationProperty Name="Users" Relationship="Self.FK_Users_Role" FromRole="Roles" ToRole="Users" />
-          <Property Name="is_deleted" Type="Boolean" Nullable="false" />
         </EntityType>
         <EntityType Name="Transactions">
           <Key>
@@ -253,7 +252,6 @@
           <Property Name="created_by" Type="Int32" />
           <NavigationProperty Name="Accounts" Relationship="Self.FK_Transactions_FromAccount" FromRole="Transactions" ToRole="Accounts" />
           <NavigationProperty Name="Accounts1" Relationship="Self.FK_Transactions_ToAccount" FromRole="Transactions" ToRole="Accounts" />
-          <Property Name="is_deleted" Type="Boolean" Nullable="false" />
         </EntityType>
         <EntityType Name="Users">
           <Key>
@@ -268,8 +266,6 @@
           <Property Name="created_at" Type="DateTime" Nullable="false" Precision="3" />
           <Property Name="last_login" Type="DateTime" Precision="3" />
           <NavigationProperty Name="Roles" Relationship="Self.FK_Users_Role" FromRole="Users" ToRole="Roles" />
-          <Property Name="is_deleted" Type="Boolean" Nullable="false" />
-          <Property Name="updated_at" Type="DateTime" Precision="3" />
         </EntityType>
         <Association Name="FK_Accounts_Client">
           <End Role="Clients" Type="Self.Clients" Multiplicity="1" />
@@ -319,7 +315,7 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
-        <EntityContainer Name="BankSystemEntities1" annotation:LazyLoadingEnabled="true">
+        <EntityContainer Name="BankSystemEntities2" annotation:LazyLoadingEnabled="true">
           <EntitySet Name="Accounts" EntityType="Self.Accounts" />
           <EntitySet Name="Clients" EntityType="Self.Clients" />
           <EntitySet Name="Roles" EntityType="Self.Roles" />
@@ -341,7 +337,13 @@
             <End Role="Roles" EntitySet="Roles" />
             <End Role="Users" EntitySet="Users" />
           </AssociationSet>
-          <EntitySet Name="Logs" EntityType="BankSystemModel.Logs" />
+          <FunctionImport Name="sp_TransferMoney" ReturnType="Collection(BankSystemModel.sp_TransferMoney_Result)">
+            <Parameter Name="from_account" Mode="In" Type="String" />
+            <Parameter Name="to_account" Mode="In" Type="String" />
+            <Parameter Name="amount" Mode="In" Type="Decimal" />
+            <Parameter Name="description" Mode="In" Type="String" />
+            <Parameter Name="user_id" Mode="In" Type="Int32" />
+          </FunctionImport>
           <FunctionImport Name="sp_AuthenticateUser" ReturnType="Collection(BankSystemModel.sp_AuthenticateUser_Result)">
             <Parameter Name="login" Mode="In" Type="String" />
             <Parameter Name="password_hash" Mode="In" Type="String" />
@@ -357,14 +359,31 @@
             <Parameter Name="new_client_id" Mode="InOut" Type="Int32" />
             <Parameter Name="new_account_number" Mode="InOut" Type="String" />
           </FunctionImport>
-          <FunctionImport Name="sp_TransferMoney" ReturnType="Collection(BankSystemModel.sp_TransferMoney_Result)">
-            <Parameter Name="from_account" Mode="In" Type="String" />
-            <Parameter Name="to_account" Mode="In" Type="String" />
-            <Parameter Name="amount" Mode="In" Type="Decimal" />
-            <Parameter Name="description" Mode="In" Type="String" />
+          <EntitySet Name="Logs" EntityType="BankSystemModel.Logs" />
+          <FunctionImport Name="sp_CreateClientWithTwoAccounts">
+            <Parameter Name="client_type" Mode="In" Type="String" />
+            <Parameter Name="full_name" Mode="In" Type="String" />
+            <Parameter Name="passport_inn" Mode="In" Type="String" />
+            <Parameter Name="phone" Mode="In" Type="String" />
+            <Parameter Name="email" Mode="In" Type="String" />
+            <Parameter Name="address" Mode="In" Type="String" />
             <Parameter Name="user_id" Mode="In" Type="Int32" />
+            <Parameter Name="new_client_id" Mode="InOut" Type="Int32" />
+            <Parameter Name="account_number1" Mode="InOut" Type="String" />
+            <Parameter Name="account_number2" Mode="InOut" Type="String" />
           </FunctionImport>
         </EntityContainer>
+        <ComplexType Name="sp_TransferMoney_Result">
+          <Property Type="String" Name="status" Nullable="false" MaxLength="7" />
+          <Property Type="String" Name="message" Nullable="false" MaxLength="16" />
+        </ComplexType>
+        <ComplexType Name="sp_AuthenticateUser_Result">
+          <Property Type="String" Name="status" Nullable="false" MaxLength="7" />
+          <Property Type="Int32" Name="id_user" Nullable="false" />
+          <Property Type="String" Name="login" Nullable="false" MaxLength="50" />
+          <Property Type="String" Name="email" Nullable="false" MaxLength="100" />
+          <Property Type="String" Name="role" Nullable="false" MaxLength="50" />
+        </ComplexType>
         <EntityType Name="Logs">
           <Key>
             <PropertyRef Name="id_log" />
@@ -377,32 +396,19 @@
           <Property Name="details" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
           <Property Name="timestamp" Type="DateTime" Nullable="false" Precision="3" />
         </EntityType>
-        <ComplexType Name="sp_AuthenticateUser_Result">
-          <Property Type="String" Name="status" Nullable="false" MaxLength="7" />
-          <Property Type="Int32" Name="id_user" Nullable="false" />
-          <Property Type="String" Name="login" Nullable="false" MaxLength="50" />
-          <Property Type="String" Name="email" Nullable="false" MaxLength="100" />
-          <Property Type="String" Name="role" Nullable="false" MaxLength="50" />
-        </ComplexType>
-        <ComplexType Name="sp_TransferMoney_Result">
-          <Property Type="String" Name="status" Nullable="false" MaxLength="7" />
-          <Property Type="String" Name="message" Nullable="false" MaxLength="16" />
-        </ComplexType>
       </Schema>
     </edmx:ConceptualModels>
     <!-- C-S mapping content -->
     <edmx:Mappings>
       <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
-        <EntityContainerMapping StorageEntityContainer="Хранилище BankSystemModelContainer" CdmEntityContainer="BankSystemEntities1">
+        <EntityContainerMapping StorageEntityContainer="Хранилище BankSystemModelContainer" CdmEntityContainer="BankSystemEntities2">
           <EntitySetMapping Name="Accounts">
             <EntityTypeMapping TypeName="BankSystemModel.Accounts">
               <MappingFragment StoreEntitySet="Accounts">
-                <ScalarProperty Name="updated_at" ColumnName="updated_at" />
-                <ScalarProperty Name="is_deleted" ColumnName="is_deleted" />
-                <ScalarProperty Name="account_name" ColumnName="account_name" />
                 <ScalarProperty Name="id_account" ColumnName="id_account" />
                 <ScalarProperty Name="account_number" ColumnName="account_number" />
                 <ScalarProperty Name="account_type" ColumnName="account_type" />
+                <ScalarProperty Name="account_name" ColumnName="account_name" />
                 <ScalarProperty Name="id_client" ColumnName="id_client" />
                 <ScalarProperty Name="balance" ColumnName="balance" />
                 <ScalarProperty Name="currency" ColumnName="currency" />
@@ -415,8 +421,6 @@
           <EntitySetMapping Name="Clients">
             <EntityTypeMapping TypeName="BankSystemModel.Clients">
               <MappingFragment StoreEntitySet="Clients">
-                <ScalarProperty Name="updated_at" ColumnName="updated_at" />
-                <ScalarProperty Name="is_deleted" ColumnName="is_deleted" />
                 <ScalarProperty Name="id_client" ColumnName="id_client" />
                 <ScalarProperty Name="client_type" ColumnName="client_type" />
                 <ScalarProperty Name="full_name" ColumnName="full_name" />
@@ -433,7 +437,6 @@
           <EntitySetMapping Name="Roles">
             <EntityTypeMapping TypeName="BankSystemModel.Roles">
               <MappingFragment StoreEntitySet="Roles">
-                <ScalarProperty Name="is_deleted" ColumnName="is_deleted" />
                 <ScalarProperty Name="id_role" ColumnName="id_role" />
                 <ScalarProperty Name="name" ColumnName="name" />
                 <ScalarProperty Name="description" ColumnName="description" />
@@ -443,7 +446,6 @@
           <EntitySetMapping Name="Transactions">
             <EntityTypeMapping TypeName="BankSystemModel.Transactions">
               <MappingFragment StoreEntitySet="Transactions">
-                <ScalarProperty Name="is_deleted" ColumnName="is_deleted" />
                 <ScalarProperty Name="id_transaction" ColumnName="id_transaction" />
                 <ScalarProperty Name="transaction_date" ColumnName="transaction_date" />
                 <ScalarProperty Name="type" ColumnName="type" />
@@ -460,8 +462,6 @@
           <EntitySetMapping Name="Users">
             <EntityTypeMapping TypeName="BankSystemModel.Users">
               <MappingFragment StoreEntitySet="Users">
-                <ScalarProperty Name="updated_at" ColumnName="updated_at" />
-                <ScalarProperty Name="is_deleted" ColumnName="is_deleted" />
                 <ScalarProperty Name="id_user" ColumnName="id_user" />
                 <ScalarProperty Name="login" ColumnName="login" />
                 <ScalarProperty Name="password_hash" ColumnName="password_hash" />
@@ -473,6 +473,26 @@
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>
+          <FunctionImportMapping FunctionImportName="sp_TransferMoney" FunctionName="Хранилище BankSystemModel.sp_TransferMoney">
+            <ResultMapping>
+              <ComplexTypeMapping TypeName="BankSystemModel.sp_TransferMoney_Result">
+                <ScalarProperty Name="status" ColumnName="status" />
+                <ScalarProperty Name="message" ColumnName="message" />
+              </ComplexTypeMapping>
+            </ResultMapping>
+          </FunctionImportMapping>
+          <FunctionImportMapping FunctionImportName="sp_AuthenticateUser" FunctionName="Хранилище BankSystemModel.sp_AuthenticateUser">
+            <ResultMapping>
+              <ComplexTypeMapping TypeName="BankSystemModel.sp_AuthenticateUser_Result">
+                <ScalarProperty Name="status" ColumnName="status" />
+                <ScalarProperty Name="id_user" ColumnName="id_user" />
+                <ScalarProperty Name="login" ColumnName="login" />
+                <ScalarProperty Name="email" ColumnName="email" />
+                <ScalarProperty Name="role" ColumnName="role" />
+              </ComplexTypeMapping>
+            </ResultMapping>
+          </FunctionImportMapping>
+          <FunctionImportMapping FunctionImportName="sp_CreateClient" FunctionName="Хранилище BankSystemModel.sp_CreateClient" />
           <EntitySetMapping Name="Logs">
             <EntityTypeMapping TypeName="BankSystemModel.Logs">
               <MappingFragment StoreEntitySet="Logs">
@@ -486,26 +506,7 @@
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>
-          <FunctionImportMapping FunctionImportName="sp_AuthenticateUser" FunctionName="Хранилище BankSystemModel.sp_AuthenticateUser">
-            <ResultMapping>
-              <ComplexTypeMapping TypeName="BankSystemModel.sp_AuthenticateUser_Result">
-                <ScalarProperty Name="status" ColumnName="status" />
-                <ScalarProperty Name="id_user" ColumnName="id_user" />
-                <ScalarProperty Name="login" ColumnName="login" />
-                <ScalarProperty Name="email" ColumnName="email" />
-                <ScalarProperty Name="role" ColumnName="role" />
-              </ComplexTypeMapping>
-            </ResultMapping>
-          </FunctionImportMapping>
-          <FunctionImportMapping FunctionImportName="sp_CreateClient" FunctionName="Хранилище BankSystemModel.sp_CreateClient" />
-          <FunctionImportMapping FunctionImportName="sp_TransferMoney" FunctionName="Хранилище BankSystemModel.sp_TransferMoney">
-            <ResultMapping>
-              <ComplexTypeMapping TypeName="BankSystemModel.sp_TransferMoney_Result">
-                <ScalarProperty Name="status" ColumnName="status" />
-                <ScalarProperty Name="message" ColumnName="message" />
-              </ComplexTypeMapping>
-            </ResultMapping>
-          </FunctionImportMapping>
+          <FunctionImportMapping FunctionImportName="sp_CreateClientWithTwoAccounts" FunctionName="Хранилище BankSystemModel.sp_CreateClientWithTwoAccounts" />
         </EntityContainerMapping>
       </Mapping>
     </edmx:Mappings>

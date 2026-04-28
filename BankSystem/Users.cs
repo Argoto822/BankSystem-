@@ -22,8 +22,6 @@ namespace BankSystem
         public bool is_active { get; set; }
         public System.DateTime created_at { get; set; }
         public Nullable<System.DateTime> last_login { get; set; }
-        public bool is_deleted { get; set; }
-        public Nullable<System.DateTime> updated_at { get; set; }
     
         public virtual Roles Roles { get; set; }
     }

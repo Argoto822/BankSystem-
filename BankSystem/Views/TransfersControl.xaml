@@ -7,11 +7,15 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <TextBlock Text="Платежи и переводы" FontSize="18" FontWeight="Bold" 
+                   Foreground="#2C3E50" Margin="0,0,0,20"/>
+
         <!-- Информация о клиенте -->
-        <Border Grid.Row="0" Background="#E8F4FD" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+        <Border Grid.Row="1" Background="#E8F4FD" CornerRadius="8" Padding="15" Margin="0,0,0,15">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -35,7 +39,7 @@
         </Border>
 
         <!-- Форма перевода -->
-        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="8" Padding="20" Margin="0,0,0,20">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -64,28 +68,39 @@
 
                 <TextBlock Grid.Row="3" Text="Сумма:" VerticalAlignment="Center"/>
                 <TextBox x:Name="txtAmount" Grid.Row="3" Grid.Column="1" Height="35" 
-                         Margin="0,5" Text="0" TextAlignment="Right"/>
+                         Margin="0,5" Text="0" TextAlignment="Right"
+                         PreviewTextInput="TxtAmount_PreviewTextInput"/>
 
                 <TextBlock Grid.Row="4" Text="Назначение:" VerticalAlignment="Center"/>
                 <TextBox x:Name="txtDescription" Grid.Row="4" Grid.Column="1" Height="35" Margin="0,5"/>
 
+                <!-- Отображение текущего баланса -->
                 <TextBlock x:Name="txtCurrentBalance" Grid.Row="5" Grid.Column="1" 
-                           Text="" Foreground="Gray" FontSize="12" Margin="5,0,0,0" 
+                           Text="" Foreground="#7F8C8D" FontSize="12" Margin="5,5,0,0" 
                            Visibility="Collapsed" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
         <!-- Кнопки -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
-            <Button x:Name="btnTransfer" Content="ВЫПОЛНИТЬ ПЕРЕВОД" Width="180" Height="40"
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,25">
+            <Button x:Name="btnDeposit" Content="💰 ПОПОЛНИТЬ" 
+                    Width="140" Height="45" 
+                    Background="#3498DB" Foreground="White" FontWeight="Bold"
+                    Click="BtnDeposit_Click" Cursor="Hand" Margin="0,0,10,0"/>
+
+            <Button x:Name="btnTransfer" Content="💸 ПЕРЕВЕСТИ" 
+                    Width="140" Height="45" 
                     Background="#27AE60" Foreground="White" FontWeight="Bold"
-                    Click="BtnTransfer_Click" Cursor="Hand"/>
-            <Button x:Name="btnClear" Content="ОЧИСТИТЬ" Width="100" Height="40" Margin="10,0,0,0"
-                    Background="#95A5A6" Foreground="White" Click="BtnClear_Click" Cursor="Hand"/>
+                    Click="BtnTransfer_Click" Cursor="Hand" Margin="0,0,10,0"/>
+
+            <Button x:Name="btnClear" Content="🗑️ ОЧИСТИТЬ" 
+                    Width="120" Height="45" 
+                    Background="#95A5A6" Foreground="White" FontWeight="Bold"
+                    Click="BtnClear_Click" Cursor="Hand"/>
         </StackPanel>
 
-        <!-- История -->
-        <Border Grid.Row="3" Background="White" CornerRadius="5" Margin="0,0,0,0">
+        <!-- История операций -->
+        <Border Grid.Row="4" Background="White" CornerRadius="5" Margin="0,0,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -95,7 +110,10 @@
                 <TextBlock Text="ИСТОРИЯ ОПЕРАЦИЙ" FontWeight="Bold" Margin="0,0,0,10"/>
 
                 <DataGrid x:Name="dgHistory" Grid.Row="1" AutoGenerateColumns="False" 
-                          IsReadOnly="True" FontSize="11">
+                          IsReadOnly="True" FontSize="11" 
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          CanUserResizeRows="False" CanUserSortColumns="True"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Дата" Binding="{Binding Date, StringFormat=dd.MM.yyyy HH:mm}" Width="120"/>
                         <DataGridTextColumn Header="Тип" Binding="{Binding Type}" Width="80"/>
@@ -112,11 +130,13 @@
             </Grid>
         </Border>
 
-        <TextBlock x:Name="txtError" Grid.Row="1" Text="" Foreground="#E74C3C" 
+        <!-- Сообщение об ошибке -->
+        <TextBlock x:Name="txtError" Grid.Row="2" Text="" Foreground="#E74C3C" 
                    HorizontalAlignment="Center" VerticalAlignment="Bottom" 
                    Margin="0,0,0,10" Visibility="Collapsed" FontSize="12"/>
 
-        <Border Grid.RowSpan="4" Background="#80FFFFFF" x:Name="loadingOverlay" Visibility="Collapsed">
+        <!-- Индикатор загрузки -->
+        <Border Grid.RowSpan="5" Background="#80FFFFFF" x:Name="loadingOverlay" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <TextBlock Text="Загрузка..." FontSize="14" Foreground="#2C3E50"/>
             </StackPanel>

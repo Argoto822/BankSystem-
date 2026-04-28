@@ -14,7 +14,7 @@ namespace BankSystem.Models
         public string Description { get; set; }
         public string Status { get; set; } = "completed";
         public decimal Commission { get; set; }
-        public int? CreatedBy { get; set; }
+        public new int? CreatedBy { get; set; }
         public string CreatedByName { get; set; }
     }
 }

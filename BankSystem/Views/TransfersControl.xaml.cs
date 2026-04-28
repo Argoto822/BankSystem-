@@ -10,78 +10,38 @@ namespace BankSystem.Views
 {
     public partial class TransfersControl : UserControl
     {
-        private List<Account> _accounts;
-        private List<Transaction> _history;
         private Client _selectedClient;
-        private List<Client> _clients;
+        private List<Account> _accounts;
 
         public TransfersControl()
         {
             InitializeComponent();
-            LoadClients();
+            Loaded += async (s, e) => await LoadClientAccounts();
         }
 
-        private async void LoadClients()
+        private async Task LoadClientAccounts()
         {
+            if (_selectedClient == null) return;
+
             loadingOverlay.Visibility = Visibility.Visible;
 
             try
             {
-                _clients = await App.Database.GetClientsAsync();
-
-                if (_clients != null && _clients.Count > 0)
-                {
-                    _selectedClient = _clients.First();
-                    UpdateClientInfo();
-                    await LoadAccountsAsync(_selectedClient.Id);
-                }
-                else
-                {
-                    txtClientName.Text = "Клиенты не найдены";
-                    txtClientInfo.Text = "Сначала добавьте клиентов";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки клиентов: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                loadingOverlay.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        private void UpdateClientInfo()
-        {
-            if (_selectedClient != null)
-            {
-                txtClientName.Text = _selectedClient.FullName;
-                int accountCount = _accounts?.Count ?? 0;
-                decimal totalBalance = _accounts?.Sum(a => a.Balance) ?? 0;
-                txtClientInfo.Text = $"Клиент с {accountCount} счетами | Общий баланс: {totalBalance:N2} ₽";
-            }
-        }
-
-        private async Task LoadAccountsAsync(int clientId)
-        {
-            loadingOverlay.Visibility = Visibility.Visible;
-
-            try
-            {
-                _accounts = await App.Database.GetClientAccountsAsync(clientId);
-                _accounts = _accounts.Where(a => a.StatusCode == "active").ToList();
+                _accounts = await App.Database.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
 
                 cmbFromAccount.ItemsSource = _accounts;
                 cmbToAccount.ItemsSource = _accounts;
 
-                UpdateAccountDisplay();
-                UpdateClientInfo();
+                cmbFromAccount.DisplayMemberPath = "FullDisplayName";
+                cmbToAccount.DisplayMemberPath = "FullDisplayName";
 
-                if (_accounts.Count > 0)
-                {
-                    await LoadHistoryAsync(_accounts.First().Id);
-                }
+                // Обновляем информацию о клиенте
+                decimal totalBalance = _accounts.Sum(a => a.Balance);
+                txtClientName.Text = _selectedClient.FullName;
+                txtClientInfo.Text = $"Клиент с {_accounts.Count} счетами | Общий баланс: {totalBalance:N2} ₽";
+
+                // Загружаем историю
+                await LoadTransactionHistory();
             }
             catch (Exception ex)
             {
@@ -94,186 +54,192 @@ namespace BankSystem.Views
             }
         }
 
-        private void UpdateAccountDisplay()
+        private async Task LoadTransactionHistory()
         {
-            if (_accounts == null) return;
+            if (_selectedClient == null) return;
 
-            foreach (var account in _accounts)
-            {
-                account.DisplayName = $"{account.AccountName} - {account.AccountNumber} - {account.Balance:N2} ₽";
-            }
-
-            var tempFrom = cmbFromAccount.SelectedItem;
-            var tempTo = cmbToAccount.SelectedItem;
-
-            cmbFromAccount.ItemsSource = null;
-            cmbToAccount.ItemsSource = null;
-
-            cmbFromAccount.ItemsSource = _accounts;
-            cmbToAccount.ItemsSource = _accounts;
-
-            if (tempFrom != null) cmbFromAccount.SelectedItem = tempFrom;
-            if (tempTo != null) cmbToAccount.SelectedItem = tempTo;
-        }
-
-        private async Task LoadHistoryAsync(int accountId)
-        {
             try
             {
-                _history = await App.Database.GetAccountTransactionsAsync(accountId);
-                dgHistory.ItemsSource = _history;
+                var allTransactions = new List<Transaction>();
+
+                foreach (var account in _accounts)
+                {
+                    var transactions = await App.Database.GetAccountTransactionsAsync(account.Id, 30);
+                    allTransactions.AddRange(transactions);
+                }
+
+                dgHistory.ItemsSource = allTransactions.OrderByDescending(t => t.Date).ToList();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadHistory error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LoadTransactionHistory error: {ex.Message}");
+            }
+        }
+
+        private async void BtnSelectClient_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new ClientSelectionDialog();
+            dialog.Owner = Window.GetWindow(this);
+
+            if (dialog.ShowDialog() == true && dialog.SelectedClient != null)
+            {
+                _selectedClient = dialog.SelectedClient;
+                await LoadClientAccounts();
             }
         }
 
         private void CmbFromAccount_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbFromAccount.SelectedItem is Account selected)
+            if (cmbFromAccount.SelectedItem is Account selectedAccount)
             {
-                cmbToAccount.ItemsSource = _accounts.Where(a => a.AccountNumber != selected.AccountNumber).ToList();
-
-                if (selected != null)
-                {
-                    txtCurrentBalance.Text = $"Доступно: {selected.Balance:N2} ₽";
-                    txtCurrentBalance.Visibility = Visibility.Visible;
-                }
+                txtCurrentBalance.Visibility = Visibility.Visible;
+                txtCurrentBalance.Text = $"Доступно: {selectedAccount.Balance:N2} {selectedAccount.Currency}";
+                txtCurrentBalance.Foreground = selectedAccount.Balance > 0 ?
+                    System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
+            }
+            else
+            {
+                txtCurrentBalance.Visibility = Visibility.Collapsed;
             }
         }
 
-        // ИСПРАВЛЕННЫЙ МЕТОД BtnTransfer_Click
         private async void BtnTransfer_Click(object sender, RoutedEventArgs e)
         {
-            txtError.Visibility = Visibility.Collapsed;
-
-            if (cmbFromAccount.SelectedItem == null || cmbToAccount.SelectedItem == null)
+            // Проверяем выбранные счета
+            if (cmbFromAccount.SelectedItem == null)
             {
-                ShowError("Выберите счета для перевода");
+                ShowError("Выберите счет списания");
                 return;
             }
 
+            if (cmbToAccount.SelectedItem == null)
+            {
+                ShowError("Выберите счет получения");
+                return;
+            }
+
+            // Проверяем сумму
             if (!decimal.TryParse(txtAmount.Text, out decimal amount) || amount <= 0)
             {
-                ShowError("Введите корректную сумму");
+                ShowError("Введите корректную сумму перевода");
                 return;
             }
 
-            var fromAccount = (Account)cmbFromAccount.SelectedItem;
-            var toAccount = (Account)cmbToAccount.SelectedItem;
+            var fromAccount = cmbFromAccount.SelectedItem as Account;
+            var toAccount = cmbToAccount.SelectedItem as Account;
 
+            // Проверяем, что счета разные
             if (fromAccount.Id == toAccount.Id)
             {
-                ShowError("Нельзя перевести на тот же счет");
-                return;
-            }
-
-            if (amount > fromAccount.Balance)
-            {
-                ShowError($"Недостаточно средств на счете \"{fromAccount.AccountName}\". Доступно: {fromAccount.Balance:N2} ₽");
-                return;
-            }
-
-            // Подтверждение перевода
-            var confirmResult = MessageBox.Show(
-                $"Подтвердите перевод:\n\n" +
-                $"Со счета: {fromAccount.AccountName} ({fromAccount.AccountNumber})\n" +
-                $"На счет: {toAccount.AccountName} ({toAccount.AccountNumber})\n" +
-                $"Сумма: {amount:N2} ₽\n\n" +
-                $"Баланс после списания: {(fromAccount.Balance - amount):N2} ₽",
-                "Подтверждение перевода",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (confirmResult != MessageBoxResult.Yes)
-            {
+                ShowError("Нельзя перевести деньги на тот же счет");
                 return;
             }
 
             loadingOverlay.Visibility = Visibility.Visible;
-            btnTransfer.IsEnabled = false;
+            txtError.Visibility = Visibility.Collapsed;
 
             try
             {
-                var success = await App.Database.TransferMoneyAsync(
+                var result = await App.Database.TransferMoneyWithDetailsAsync(
                     fromAccount.AccountNumber,
                     toAccount.AccountNumber,
                     amount,
                     txtDescription.Text,
                     App.Session.CurrentUser?.Id ?? 1);
 
-                if (success)
+                if (result.Success)
                 {
-                    // Обновляем балансы
-                    decimal oldFromBalance = fromAccount.Balance;
-                    decimal oldToBalance = toAccount.Balance;
+                    MessageBox.Show(result.Message, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    fromAccount.Balance -= amount;
-                    toAccount.Balance += amount;
-
-                    MessageBox.Show(
-                        $"Перевод {amount:N2} ₽ выполнен успешно!\n\n" +
-                        $"Счет списания: {fromAccount.AccountName}\n" +
-                        $"  Было: {oldFromBalance:N2} ₽\n" +
-                        $"  Стало: {fromAccount.Balance:N2} ₽\n\n" +
-                        $"Счет зачисления: {toAccount.AccountName}\n" +
-                        $"  Было: {oldToBalance:N2} ₽\n" +
-                        $"  Стало: {toAccount.Balance:N2} ₽",
-                        "Успех",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-
-                    // Обновляем отображение
-                    UpdateAccountDisplay();
-                    UpdateClientInfo();
-                    await LoadHistoryAsync(fromAccount.Id);
+                    // Обновляем балансы счетов
+                    await LoadClientAccounts();
 
                     // Очищаем форму
                     txtAmount.Text = "0";
                     txtDescription.Text = "";
-                    txtCurrentBalance.Text = "";
-                    txtCurrentBalance.Visibility = Visibility.Collapsed;
                     cmbFromAccount.SelectedItem = null;
                     cmbToAccount.SelectedItem = null;
+
+                    // Обновляем историю
+                    await LoadTransactionHistory();
                 }
                 else
                 {
-                    ShowError("Ошибка при выполнении перевода");
+                    ShowError(result.Message);
                 }
             }
             catch (Exception ex)
             {
-                ShowError($"Ошибка: {ex.Message}");
+                ShowError($"Ошибка перевода: {ex.Message}");
             }
             finally
             {
                 loadingOverlay.Visibility = Visibility.Collapsed;
-                btnTransfer.IsEnabled = true;
             }
         }
-
-        private void BtnSelectClient_Click(object sender, RoutedEventArgs e)
+        private async void BtnDeposit_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new ClientSelectionDialog(_clients);
+            if (_selectedClient == null)
+            {
+                MessageBox.Show("Сначала выберите клиента", "Внимание",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_accounts == null || _accounts.Count == 0)
+            {
+                MessageBox.Show("У клиента нет активных счетов", "Внимание",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dialog = new DepositDialog(_accounts);
             dialog.Owner = Window.GetWindow(this);
 
-            if (dialog.ShowDialog() == true && dialog.SelectedClient != null)
+            if (dialog.ShowDialog() == true && dialog.Success)
             {
-                _selectedClient = dialog.SelectedClient;
-                UpdateClientInfo();
-                LoadAccountsAsync(_selectedClient.Id);
+                loadingOverlay.Visibility = Visibility.Visible;
+
+                try
+                {
+                    var result = await App.Database.DepositToAccountAsync(
+                        dialog.TargetAccountNumber,
+                        dialog.Amount,
+                        $"Пополнение через оператора",
+                        App.Session.CurrentUser?.Id ?? 1);
+
+                    if (result.Success)
+                    {
+                        MessageBox.Show(result.Message, "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+
+                        // Обновляем данные
+                        await LoadClientAccounts();
+                    }
+                    else
+                    {
+                        MessageBox.Show(result.Message, "Ошибка",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка пополнения: {ex.Message}", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    loadingOverlay.Visibility = Visibility.Collapsed;
+                }
             }
         }
 
         private void BtnClear_Click(object sender, RoutedEventArgs e)
         {
-            cmbFromAccount.SelectedItem = null;
-            cmbToAccount.SelectedItem = null;
             txtAmount.Text = "0";
             txtDescription.Text = "";
-            txtCurrentBalance.Text = "";
-            txtCurrentBalance.Visibility = Visibility.Collapsed;
+            cmbFromAccount.SelectedItem = null;
+            cmbToAccount.SelectedItem = null;
             txtError.Visibility = Visibility.Collapsed;
         }
 
@@ -281,6 +247,19 @@ namespace BankSystem.Views
         {
             txtError.Text = message;
             txtError.Visibility = Visibility.Visible;
+        }
+
+        private void TxtAmount_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            // Разрешаем только цифры, точку и запятую
+            foreach (char c in e.Text)
+            {
+                if (!char.IsDigit(c) && c != '.' && c != ',')
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
         }
     }
 }

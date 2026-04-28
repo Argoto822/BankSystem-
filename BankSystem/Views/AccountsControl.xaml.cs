@@ -17,10 +17,10 @@ namespace BankSystem.Views
         public AccountsControl()
         {
             InitializeComponent();
-            LoadClientsAsync();
+            Loaded += async (s, e) => await LoadClientsAsync();
         }
 
-        private async void LoadClientsAsync()
+        private async Task LoadClientsAsync()
         {
             loadingOverlay.Visibility = Visibility.Visible;
 
@@ -65,7 +65,8 @@ namespace BankSystem.Views
                 txtEmpty.Visibility = _accounts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 dgAccounts.Visibility = _accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-                btnOpenAccount.Visibility = App.Session.IsOperator ? Visibility.Visible : Visibility.Collapsed;
+                // Проверяем права доступа
+                btnOpenAccount.Visibility = (App.Session.IsAdmin || App.Session.IsOperator) ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex)
             {
@@ -80,7 +81,12 @@ namespace BankSystem.Views
 
         private async void BtnOpenAccount_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedClient == null) return;
+            if (_selectedClient == null)
+            {
+                MessageBox.Show("Сначала выберите клиента", "Внимание",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             var dialog = new OpenAccountDialog();
             dialog.Owner = Window.GetWindow(this);
@@ -89,24 +95,34 @@ namespace BankSystem.Views
             {
                 loadingOverlay.Visibility = Visibility.Visible;
 
-                var success = await App.Database.OpenAccountAsync(
-                    _selectedClient.Id,
-                    dialog.SelectedAccountType,
-                    App.Session.CurrentUser?.Id ?? 1);
+                try
+                {
+                    var success = await App.Database.OpenAccountAsync(
+                        _selectedClient.Id,
+                        dialog.SelectedAccountType,
+                        App.Session.CurrentUser?.Id ?? 1);
 
-                if (success)
-                {
-                    await LoadAccountsAsync(_selectedClient.Id);
-                    MessageBox.Show("Счет успешно открыт!", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (success)
+                    {
+                        await LoadAccountsAsync(_selectedClient.Id);
+                        MessageBox.Show("Счет успешно открыт!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ошибка при открытии счета", "Ошибка",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка при открытии счета", "Ошибка",
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-
-                loadingOverlay.Visibility = Visibility.Collapsed;
+                finally
+                {
+                    loadingOverlay.Visibility = Visibility.Collapsed;
+                }
             }
         }
     }

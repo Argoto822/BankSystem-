@@ -1,80 +1,87 @@
 ﻿<Window x:Class="BankSystem.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Банковская система" Height="700" Width="1000"
+        Title="БАНКОВСКАЯ СИСТЕМА" Height="700" Width="1100"
         WindowStartupLocation="CenterScreen"
         Background="#F0F2F5">
 
+    <Window.Resources>
+        <Style TargetType="Button" x:Key="MenuButton">
+            <Setter Property="Width" Value="130"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="5"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActiveMenuButton">
+            <Setter Property="Width" Value="130"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#E74C3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+    </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="60"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="30"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Верхняя панель -->
-        <Border Grid.Row="0" Background="#2C3E50">
+        <!-- Верхняя панель с меню -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="15,10">
             <Grid>
-                <TextBlock Text="БАНКОВСКАЯ СИСТЕМА" 
-                           FontSize="18" FontWeight="Bold" Foreground="White"
-                           VerticalAlignment="Center" Margin="20,0,0,0"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" 
-                            VerticalAlignment="Center" Margin="0,0,20,0">
-                    <TextBlock x:Name="txtUser" Foreground="White" VerticalAlignment="Center"/>
-                    <Button x:Name="btnLogout" Content="Выход" Width="70" Height="28" 
-                            Margin="15,0,0,0" Background="#E74C3C" Foreground="White"
+                <TextBlock Text="🏦 БАНКОВСКАЯ СИСТЕМА" FontSize="18" FontWeight="Bold" Foreground="White"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button x:Name="btnClients" Content="КЛИЕНТЫ" Style="{StaticResource MenuButton}"
+                            Click="BtnClients_Click"/>
+                    <Button x:Name="btnAccounts" Content="СЧЕТА" Style="{StaticResource MenuButton}"
+                            Click="BtnAccounts_Click"/>
+                    <Button x:Name="btnTransfers" Content="ПЕРЕВОДЫ" Style="{StaticResource MenuButton}"
+                            Click="BtnTransfers_Click"/>
+                    <Button x:Name="btnReports" Content="ОТЧЕТЫ" Style="{StaticResource MenuButton}"
+                            Click="BtnReports_Click"/>
+                    <Button x:Name="btnAdmin" Content="АДМИНИСТРИРОВАНИЕ" Style="{StaticResource MenuButton}"
+                            Click="BtnAdmin_Click"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0">
+                    <TextBlock x:Name="txtUserInfo" Text="Администратор" Foreground="White" 
+                               VerticalAlignment="Center" FontSize="13" Margin="0,0,15,0"/>
+                    <Button x:Name="btnLogout" Content="🚪 ВЫЙТИ" Width="80" Height="32"
+                            Background="#E74C3C" Foreground="White" FontWeight="Bold"
                             Click="BtnLogout_Click" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Основная область -->
-        <Grid Grid.Row="1" Margin="10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Меню -->
-            <Border Grid.Column="0" Background="White" CornerRadius="8" Margin="0,0,10,0">
-                <StackPanel Margin="10">
-                    <TextBlock Text="МЕНЮ" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
-
-                    <Button x:Name="btnClients" Content="👥 КЛИЕНТЫ" 
-                            Background="Transparent" Padding="10,8" HorizontalAlignment="Stretch"
-                            Click="BtnClients_Click" Cursor="Hand" FontWeight="Bold"/>
-
-                    <Button x:Name="btnAccounts" Content="💰 СЧЕТА" 
-                            Background="Transparent" Padding="10,8" HorizontalAlignment="Stretch"
-                            Click="BtnAccounts_Click" Cursor="Hand" FontWeight="Bold"/>
-
-                    <Button x:Name="btnTransfers" Content="💸 ПЕРЕВОДЫ" 
-                            Background="Transparent" Padding="10,8" HorizontalAlignment="Stretch"
-                            Click="BtnTransfers_Click" Cursor="Hand" FontWeight="Bold"/>
-
-                    <Button x:Name="btnReports" Content="📊 ОТЧЕТЫ" 
-                            Background="Transparent" Padding="10,8" HorizontalAlignment="Stretch"
-                            Click="BtnReports_Click" Cursor="Hand" FontWeight="Bold"
-                            Visibility="Collapsed"/>
-
-                    <Button x:Name="btnAdmin" Content="⚙ АДМИНИСТРИРОВАНИЕ" 
-                            Background="Transparent" Padding="10,8" HorizontalAlignment="Stretch"
-                            Click="BtnAdmin_Click" Cursor="Hand" FontWeight="Bold"
-                            Visibility="Collapsed"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Контент -->
-            <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="15">
-                <ContentControl x:Name="ContentArea"/>
-            </Border>
-        </Grid>
+        <!-- Контент -->
+        <ContentControl x:Name="MainContent" Grid.Row="1" Margin="15"/>
 
         <!-- Нижняя панель -->
-        <Border Grid.Row="2" Background="#BDC3C7">
-            <TextBlock x:Name="txtStatus" Text="Готов к работе" Margin="10,0" 
-                       VerticalAlignment="Center" FontSize="11"/>
+        <Border Grid.Row="2" Background="#34495E" Padding="10">
+            <TextBlock Text="© 2024 Банковская система. Все права защищены." 
+                       Foreground="White" FontSize="11" HorizontalAlignment="Center"/>
         </Border>
     </Grid>
 </Window>

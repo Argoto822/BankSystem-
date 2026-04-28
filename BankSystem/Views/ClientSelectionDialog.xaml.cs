@@ -1,66 +1,60 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using BankSystem.Models;
 
 namespace BankSystem.Views
 {
     public partial class ClientSelectionDialog : Window
     {
-        private List<Client> _allClients;
-        private List<Client> _filteredClients;
-
         public Client SelectedClient { get; private set; }
+        private List<Client> _clients;
 
-        public ClientSelectionDialog(List<Client> clients)
+        public ClientSelectionDialog()
         {
             InitializeComponent();
-            _allClients = clients;
-            _filteredClients = new List<Client>(clients);
-            lstClients.ItemsSource = _filteredClients;
+            Loaded += async (s, e) => await LoadClients();
         }
 
-        private void TxtSearch_GotFocus(object sender, RoutedEventArgs e)
+        private async Task LoadClients(string search = null)
         {
-            if (txtSearch.Text == "Поиск по имени или телефону")
-                txtSearch.Text = "";
+            _clients = await App.Database.GetClientsAsync(search, true, false);
+            dgClients.ItemsSource = _clients;
         }
 
-        private void TxtSearch_LostFocus(object sender, RoutedEventArgs e)
+        private async void TxtSearch_KeyDown(object sender, KeyEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtSearch.Text))
-                txtSearch.Text = "Поиск по имени или телефону";
-        }
-
-        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            string search = txtSearch.Text;
-            if (string.IsNullOrWhiteSpace(search) || search == "Поиск по имени или телефону")
+            if (e.Key == Key.Enter)
             {
-                _filteredClients = new List<Client>(_allClients);
+                var search = txtSearch.Text == "Поиск клиента..." ? "" : txtSearch.Text;
+                await LoadClients(search);
             }
-            else
-            {
-                _filteredClients = _allClients.Where(c =>
-                    c.FullName.ToLower().Contains(search.ToLower()) ||
-                    (c.Phone != null && c.Phone.Contains(search))).ToList();
-            }
-            lstClients.ItemsSource = _filteredClients;
         }
 
-        private void LstClients_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void DgClients_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            btnSelect.IsEnabled = lstClients.SelectedItem != null;
+            SelectedClient = dgClients.SelectedItem as Client;
+            if (SelectedClient != null)
+            {
+                DialogResult = true;
+                Close();
+            }
         }
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
         {
-            if (lstClients.SelectedItem is Client client)
+            SelectedClient = dgClients.SelectedItem as Client;
+            if (SelectedClient != null)
             {
-                SelectedClient = client;
                 DialogResult = true;
                 Close();
+            }
+            else
+            {
+                MessageBox.Show("Выберите клиента", "Внимание",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -68,6 +62,18 @@ namespace BankSystem.Views
         {
             DialogResult = false;
             Close();
+        }
+
+        private void TxtSearch_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (txtSearch.Text == "Поиск клиента...")
+                txtSearch.Text = "";
+        }
+
+        private void TxtSearch_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                txtSearch.Text = "Поиск клиента...";
         }
     }
 }

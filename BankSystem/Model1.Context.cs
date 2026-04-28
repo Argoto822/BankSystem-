@@ -15,10 +15,10 @@ namespace BankSystem
     using System.Data.Entity.Core.Objects;
     using System.Linq;
     
-    public partial class BankSystemEntities1 : DbContext
+    public partial class BankSystemEntities2 : DbContext
     {
-        public BankSystemEntities1()
-            : base("name=BankSystemEntities1")
+        public BankSystemEntities2()
+            : base("name=BankSystemEntities2")
         {
         }
     
@@ -33,6 +33,31 @@ namespace BankSystem
         public virtual DbSet<Transactions> Transactions { get; set; }
         public virtual DbSet<Users> Users { get; set; }
         public virtual DbSet<Logs> Logs { get; set; }
+    
+        public virtual ObjectResult<sp_TransferMoney_Result> sp_TransferMoney(string from_account, string to_account, Nullable<decimal> amount, string description, Nullable<int> user_id)
+        {
+            var from_accountParameter = from_account != null ?
+                new ObjectParameter("from_account", from_account) :
+                new ObjectParameter("from_account", typeof(string));
+    
+            var to_accountParameter = to_account != null ?
+                new ObjectParameter("to_account", to_account) :
+                new ObjectParameter("to_account", typeof(string));
+    
+            var amountParameter = amount.HasValue ?
+                new ObjectParameter("amount", amount) :
+                new ObjectParameter("amount", typeof(decimal));
+    
+            var descriptionParameter = description != null ?
+                new ObjectParameter("description", description) :
+                new ObjectParameter("description", typeof(string));
+    
+            var user_idParameter = user_id.HasValue ?
+                new ObjectParameter("user_id", user_id) :
+                new ObjectParameter("user_id", typeof(int));
+    
+            return ((IObjectContextAdapter)this).ObjectContext.ExecuteFunction<sp_TransferMoney_Result>("sp_TransferMoney", from_accountParameter, to_accountParameter, amountParameter, descriptionParameter, user_idParameter);
+        }
     
         public virtual ObjectResult<sp_AuthenticateUser_Result> sp_AuthenticateUser(string login, string password_hash)
         {
@@ -80,29 +105,37 @@ namespace BankSystem
             return ((IObjectContextAdapter)this).ObjectContext.ExecuteFunction("sp_CreateClient", client_typeParameter, full_nameParameter, passport_innParameter, phoneParameter, emailParameter, addressParameter, user_idParameter, new_client_id, new_account_number);
         }
     
-        public virtual ObjectResult<sp_TransferMoney_Result> sp_TransferMoney(string from_account, string to_account, Nullable<decimal> amount, string description, Nullable<int> user_id)
+        public virtual int sp_CreateClientWithTwoAccounts(string client_type, string full_name, string passport_inn, string phone, string email, string address, Nullable<int> user_id, ObjectParameter new_client_id, ObjectParameter account_number1, ObjectParameter account_number2)
         {
-            var from_accountParameter = from_account != null ?
-                new ObjectParameter("from_account", from_account) :
-                new ObjectParameter("from_account", typeof(string));
+            var client_typeParameter = client_type != null ?
+                new ObjectParameter("client_type", client_type) :
+                new ObjectParameter("client_type", typeof(string));
     
-            var to_accountParameter = to_account != null ?
-                new ObjectParameter("to_account", to_account) :
-                new ObjectParameter("to_account", typeof(string));
+            var full_nameParameter = full_name != null ?
+                new ObjectParameter("full_name", full_name) :
+                new ObjectParameter("full_name", typeof(string));
     
-            var amountParameter = amount.HasValue ?
-                new ObjectParameter("amount", amount) :
-                new ObjectParameter("amount", typeof(decimal));
+            var passport_innParameter = passport_inn != null ?
+                new ObjectParameter("passport_inn", passport_inn) :
+                new ObjectParameter("passport_inn", typeof(string));
     
-            var descriptionParameter = description != null ?
-                new ObjectParameter("description", description) :
-                new ObjectParameter("description", typeof(string));
+            var phoneParameter = phone != null ?
+                new ObjectParameter("phone", phone) :
+                new ObjectParameter("phone", typeof(string));
+    
+            var emailParameter = email != null ?
+                new ObjectParameter("email", email) :
+                new ObjectParameter("email", typeof(string));
+    
+            var addressParameter = address != null ?
+                new ObjectParameter("address", address) :
+                new ObjectParameter("address", typeof(string));
     
             var user_idParameter = user_id.HasValue ?
                 new ObjectParameter("user_id", user_id) :
                 new ObjectParameter("user_id", typeof(int));
     
-            return ((IObjectContextAdapter)this).ObjectContext.ExecuteFunction<sp_TransferMoney_Result>("sp_TransferMoney", from_accountParameter, to_accountParameter, amountParameter, descriptionParameter, user_idParameter);
+            return ((IObjectContextAdapter)this).ObjectContext.ExecuteFunction("sp_CreateClientWithTwoAccounts", client_typeParameter, full_nameParameter, passport_innParameter, phoneParameter, emailParameter, addressParameter, user_idParameter, new_client_id, account_number1, account_number2);
         }
     }
 }
