@@ -57,6 +57,8 @@
                             Click="BtnClients_Click"/>
                     <Button x:Name="btnAccounts" Content="СЧЕТА" Style="{StaticResource MenuButton}"
                             Click="BtnAccounts_Click"/>
+                    <Button x:Name="btnCredit" Content="КРЕДИТЫ" Style="{StaticResource MenuButton}"
+                            Click="BtnCredit_Click"/>
                     <Button x:Name="btnTransfers" Content="ПЕРЕВОДЫ" Style="{StaticResource MenuButton}"
                             Click="BtnTransfers_Click"/>
                     <Button x:Name="btnReports" Content="ОТЧЕТЫ" Style="{StaticResource MenuButton}"

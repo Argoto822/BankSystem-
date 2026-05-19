@@ -1,77 +1,83 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Threading.Tasks;
 using BankSystem.Models;
+using BankSystem.Services;
 
 namespace BankSystem.Views
 {
     public partial class AccountsControl : UserControl
     {
+        private DatabaseService _databaseService;
         private List<Client> _clients;
         private List<Account> _accounts;
-        private Client _selectedClient;
 
         public AccountsControl()
         {
             InitializeComponent();
-            Loaded += async (s, e) => await LoadClientsAsync();
+            _databaseService = new DatabaseService();
+            LoadClients();
         }
 
-        private async Task LoadClientsAsync()
+        private async void LoadClients()
         {
-            loadingOverlay.Visibility = Visibility.Visible;
-
             try
             {
-                _clients = await App.Database.GetClientsAsync(null, true);
+                _clients = await _databaseService.GetClientsAsync();
                 cmbClients.ItemsSource = _clients;
+
+                if (_clients != null && _clients.Any())
+                {
+                    cmbClients.SelectedIndex = 0;
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                loadingOverlay.Visibility = Visibility.Collapsed;
+                MessageBox.Show($"Ошибка загрузки клиентов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private async void CmbClients_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbClients.SelectedItem is Client client)
+            if (cmbClients.SelectedItem is Client selectedClient)
             {
-                _selectedClient = client;
-                await LoadAccountsAsync(client.Id);
+                await LoadAccounts(selectedClient.Id);
             }
         }
 
-        private async Task LoadAccountsAsync(int clientId)
+        private async Task LoadAccounts(int clientId)
         {
-            loadingOverlay.Visibility = Visibility.Visible;
-
             try
             {
-                _accounts = await App.Database.GetClientAccountsAsync(clientId);
-                dgAccounts.ItemsSource = _accounts;
+                loadingOverlay.Visibility = Visibility.Visible;
 
-                txtCount.Text = _accounts.Count.ToString();
-                txtTotal.Text = $"{_accounts.Sum(a => a.Balance):N2} ₽";
-                txtAverage.Text = _accounts.Count > 0 ? $"{_accounts.Average(a => a.Balance):N2} ₽" : "0 ₽";
+                _accounts = await _databaseService.GetClientAccountsAsync(clientId);
 
-                txtEmpty.Visibility = _accounts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-                dgAccounts.Visibility = _accounts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                if (_accounts != null && _accounts.Any())
+                {
+                    dgAccounts.ItemsSource = _accounts;
+                    dgAccounts.Visibility = Visibility.Visible;
+                    txtEmpty.Visibility = Visibility.Collapsed;
 
-                // Проверяем права доступа
-                btnOpenAccount.Visibility = (App.Session.IsAdmin || App.Session.IsOperator) ? Visibility.Visible : Visibility.Collapsed;
+                    UpdateStatistics(_accounts);
+                }
+                else
+                {
+                    dgAccounts.ItemsSource = null;
+                    dgAccounts.Visibility = Visibility.Collapsed;
+                    txtEmpty.Visibility = Visibility.Visible;
+
+                    txtCount.Text = "0";
+                    txtTotal.Text = "0 ₽";
+                    txtAverage.Text = "0 ₽";
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки счетов: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка загрузки счетов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -79,49 +85,28 @@ namespace BankSystem.Views
             }
         }
 
+        private void UpdateStatistics(List<Account> accounts)
+        {
+            txtCount.Text = accounts.Count.ToString();
+
+            decimal totalBalance = accounts.Sum(a => Math.Abs(a.Balance));
+            txtTotal.Text = $"{totalBalance:N2} ₽";
+
+            decimal averageBalance = accounts.Any() ? totalBalance / accounts.Count : 0;
+            txtAverage.Text = $"{averageBalance:N2} ₽";
+        }
+
         private async void BtnOpenAccount_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedClient == null)
+            if (cmbClients.SelectedItem is Client selectedClient)
             {
-                MessageBox.Show("Сначала выберите клиента", "Внимание",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+                var dialog = new OpenAccountDialog();
+                dialog.Owner = Window.GetWindow(this);
+                dialog.SetClientId(selectedClient.Id);
 
-            var dialog = new OpenAccountDialog();
-            dialog.Owner = Window.GetWindow(this);
-
-            if (dialog.ShowDialog() == true)
-            {
-                loadingOverlay.Visibility = Visibility.Visible;
-
-                try
+                if (dialog.ShowDialog() == true)
                 {
-                    var success = await App.Database.OpenAccountAsync(
-                        _selectedClient.Id,
-                        dialog.SelectedAccountType,
-                        App.Session.CurrentUser?.Id ?? 1);
-
-                    if (success)
-                    {
-                        await LoadAccountsAsync(_selectedClient.Id);
-                        MessageBox.Show("Счет успешно открыт!", "Успех",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Ошибка при открытии счета", "Ошибка",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                finally
-                {
-                    loadingOverlay.Visibility = Visibility.Collapsed;
+                    await LoadAccounts(selectedClient.Id);
                 }
             }
         }

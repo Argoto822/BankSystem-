@@ -1,0 +1,283 @@
+﻿<Window x:Class="BankSystem.Views.CreditIssueDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Оформление кредита" Height="750" Width="900"
+        WindowStartupLocation="CenterOwner"
+        Background="White"
+        ResizeMode="CanResize"
+        MinHeight="650" MinWidth="800">
+
+    <Window.Resources>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+        </Style>
+
+        <Style TargetType="TextBox" x:Key="NumericTextBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Height" Value="38"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="RoundedButton">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="5" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок -->
+            <Border Grid.Row="0" Background="#2C3E50" CornerRadius="8" Padding="15" Margin="0,0,0,20">
+                <TextBlock Text="🏦 ОФОРМЛЕНИЕ КРЕДИТА" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+            </Border>
+
+            <!-- Информация о клиенте -->
+            <GroupBox Grid.Row="1" Header="👤 КЛИЕНТ" Margin="0,0,0,15">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Выбранный клиент:" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock Text="{Binding ClientFullName, FallbackValue='Не выбран'}" FontSize="14" VerticalAlignment="Center" 
+                                   Margin="0,0,15,0" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                        <Button Content="📋 Выбрать клиента" Click="SelectClient_Click" 
+                                Background="#3498DB" Foreground="White" Padding="12,8" Cursor="Hand" FontSize="13"
+                                BorderThickness="0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" 
+                                                        CornerRadius="5" 
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Параметры кредита -->
+            <GroupBox Grid.Row="2" Header="📋 ПАРАМЕТРЫ КРЕДИТА" Margin="0,0,0,15">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,15,15">
+                        <TextBlock Text="💰 Сумма кредита (₽)" FontWeight="Bold" Margin="0,0,0,8" FontSize="13"/>
+                        <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" 
+                                 Style="{StaticResource NumericTextBox}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="15,0,0,15">
+                        <TextBlock Text="📈 Процентная ставка (%)" FontWeight="Bold" Margin="0,0,0,8" FontSize="13"/>
+                        <TextBox Text="{Binding InterestRate, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F1}}" 
+                                 Style="{StaticResource NumericTextBox}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,15,15">
+                        <TextBlock Text="📅 Срок кредита (месяцев)" FontWeight="Bold" Margin="0,0,0,8" FontSize="13"/>
+                        <TextBox Text="{Binding TermMonths, UpdateSourceTrigger=PropertyChanged}" 
+                                 Style="{StaticResource NumericTextBox}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="15,0,0,15">
+                        <TextBlock Text="🔄 Тип платежа" FontWeight="Bold" Margin="0,0,0,8" FontSize="13"/>
+                        <ComboBox ItemsSource="{Binding PaymentTypes}" SelectedItem="{Binding PaymentType}" 
+                                  Background="White" FontSize="14" Padding="8" Height="38"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,0">
+                        <TextBlock Text="💬 Назначение кредита" FontWeight="Bold" Margin="0,0,0,8" FontSize="13"/>
+                        <TextBox Text="{Binding Purpose}" FontSize="14" Padding="8" BorderBrush="#BDC3C7" 
+                                 Height="70" TextWrapping="Wrap" AcceptsReturn="True" BorderThickness="1"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Предварительный расчет -->
+            <GroupBox Grid.Row="3" Header="📊 ПРЕДВАРИТЕЛЬНЫЙ РАСЧЕТ" Margin="0,0,0,15" BorderBrush="#27AE60">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="#E8F8F5" CornerRadius="8" Padding="15" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="📊 Ежемесячный платеж" Foreground="#16A085" FontSize="12" TextAlignment="Center"/>
+                            <TextBlock Text="{Binding MonthlyPayment, StringFormat={}{0:N2} ₽}" FontSize="22" FontWeight="Bold" Foreground="#27AE60" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Background="#FEF9E7" CornerRadius="8" Padding="15" Margin="5,0,5,0">
+                        <StackPanel>
+                            <TextBlock Text="💰 Общая сумма выплат" Foreground="#F39C12" FontSize="12" TextAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalPayments, StringFormat={}{0:N2} ₽}" FontSize="22" FontWeight="Bold" Foreground="#F39C12" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="#FDEDEC" CornerRadius="8" Padding="15" Margin="10,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="💸 Переплата по процентам" Foreground="#E74C3C" FontSize="12" TextAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalInterest, StringFormat={}{0:N2} ₽}" FontSize="22" FontWeight="Bold" Foreground="#E74C3C" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </GroupBox>
+
+            <!-- График платежей (краткий) -->
+            <GroupBox Grid.Row="4" Header="📋 ГРАФИК ПЛАТЕЖЕЙ (первые 6 месяцев)" Margin="0,0,0,15">
+                <DataGrid ItemsSource="{Binding PaymentSchedulePreview}" 
+                          AutoGenerateColumns="False" IsReadOnly="True" Height="180" FontSize="12"
+                          AlternatingRowBackground="#F9F9F9" GridLinesVisibility="Horizontal"
+                          RowHeight="30">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="№" Binding="{Binding PaymentNumber}" Width="50">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Дата" Binding="{Binding PaymentDate, StringFormat=dd.MM.yyyy}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Платеж" Binding="{Binding PaymentAmount, StringFormat={}{0:N0} ₽}" Width="110">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Основной долг" Binding="{Binding PrincipalAmount, StringFormat={}{0:N0} ₽}" Width="110">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Проценты" Binding="{Binding InterestAmount, StringFormat={}{0:N0} ₽}" Width="110">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Остаток долга" Binding="{Binding RemainingDebt, StringFormat={}{0:N0} ₽}" Width="110">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </GroupBox>
+
+            <!-- Кнопки -->
+            <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="❌ Отмена" Click="Cancel_Click" Width="110" Height="40" Margin="0,0,15,0"
+                        Background="#95A5A6" Foreground="White" FontWeight="Bold" Cursor="Hand" FontSize="14"
+                        BorderThickness="0">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                CornerRadius="6" 
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="✅ Оформить кредит" Click="IssueCredit_Click" Width="160" Height="40"
+                        Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand" FontSize="14"
+                        BorderThickness="0">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                CornerRadius="6" 
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#219A52"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Window>

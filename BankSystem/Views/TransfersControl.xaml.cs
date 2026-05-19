@@ -1,52 +1,47 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using BankSystem.Models;
+using BankSystem.Services;
 
 namespace BankSystem.Views
 {
     public partial class TransfersControl : UserControl
     {
+        private DatabaseService _databaseService;
         private Client _selectedClient;
-        private List<Account> _accounts;
+        private Account _selectedFromAccount;
+        private Account _selectedToAccount;
+        private Account _selectedCreditAccount;
 
         public TransfersControl()
         {
             InitializeComponent();
-            Loaded += async (s, e) => await LoadClientAccounts();
+            _databaseService = new DatabaseService();
+            LoadData();
         }
 
-        private async Task LoadClientAccounts()
+        private async void LoadData()
         {
-            if (_selectedClient == null) return;
-
-            loadingOverlay.Visibility = Visibility.Visible;
-
             try
             {
-                _accounts = await App.Database.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
+                loadingOverlay.Visibility = Visibility.Visible;
 
-                cmbFromAccount.ItemsSource = _accounts;
-                cmbToAccount.ItemsSource = _accounts;
-
-                cmbFromAccount.DisplayMemberPath = "FullDisplayName";
-                cmbToAccount.DisplayMemberPath = "FullDisplayName";
-
-                // Обновляем информацию о клиенте
-                decimal totalBalance = _accounts.Sum(a => a.Balance);
-                txtClientName.Text = _selectedClient.FullName;
-                txtClientInfo.Text = $"Клиент с {_accounts.Count} счетами | Общий баланс: {totalBalance:N2} ₽";
-
-                // Загружаем историю
-                await LoadTransactionHistory();
+                if (App.Session.CurrentUser != null)
+                {
+                    var clients = await _databaseService.GetClientsAsync();
+                    if (clients != null && clients.Any())
+                    {
+                        _selectedClient = clients.First();
+                        await LoadClientInfo();
+                    }
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки счетов: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Ошибка загрузки данных: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -54,29 +49,88 @@ namespace BankSystem.Views
             }
         }
 
-        private async Task LoadTransactionHistory()
+        private async Task LoadClientInfo()
         {
-            if (_selectedClient == null) return;
-
-            try
+            if (_selectedClient != null)
             {
-                var allTransactions = new List<Transaction>();
+                txtClientName.Text = _selectedClient.FullName;
 
-                foreach (var account in _accounts)
+                var accounts = await _databaseService.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
+                decimal totalBalance = 0;
+                if (accounts != null && accounts.Any())
                 {
-                    var transactions = await App.Database.GetAccountTransactionsAsync(account.Id, 30);
-                    allTransactions.AddRange(transactions);
+                    totalBalance = accounts.Where(a => a.AccountType != "credit").Sum(a => Math.Abs(a.Balance));
                 }
+                txtClientInfo.Text = $"Клиент с {accounts?.Count ?? 0} счетами | Общий баланс: {totalBalance:N2} ₽";
 
-                dgHistory.ItemsSource = allTransactions.OrderByDescending(t => t.Date).ToList();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"LoadTransactionHistory error: {ex.Message}");
+                await LoadAccounts();
             }
         }
 
-        private async void BtnSelectClient_Click(object sender, RoutedEventArgs e)
+        private async Task LoadAccounts()
+        {
+            var accounts = await _databaseService.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
+
+            var activeAccounts = accounts?.Where(a => a.StatusCode == "active").ToList() ?? new System.Collections.Generic.List<Account>();
+
+            cmbFromAccount.ItemsSource = activeAccounts;
+            cmbToAccount.ItemsSource = activeAccounts;
+
+            // Находим кредитный счет
+            _selectedCreditAccount = activeAccounts.FirstOrDefault(a => a.AccountType == "credit");
+
+            if (_selectedCreditAccount != null)
+            {
+                creditPaymentPanel.Visibility = Visibility.Visible;
+                txtCreditAccountNumber.Text = _selectedCreditAccount.AccountNumber;
+                decimal debt = Math.Abs(_selectedCreditAccount.Balance);
+                txtCreditDebt.Text = debt.ToString("N2") + " ₽";
+
+                // Рассчитываем минимальный платеж (5% от суммы долга, но не менее 1000 руб)
+                decimal minPayment = Math.Max(debt * 0.05m, 1000);
+                txtPaymentInfo.Text = $"Минимальный платеж: {minPayment:N2} ₽. Полное погашение: {debt:N2} ₽.";
+            }
+            else
+            {
+                creditPaymentPanel.Visibility = Visibility.Collapsed;
+            }
+
+            if (activeAccounts != null && activeAccounts.Any())
+            {
+                cmbFromAccount.SelectedIndex = 0;
+                cmbToAccount.IsEnabled = true;
+            }
+            else
+            {
+                cmbFromAccount.IsEnabled = false;
+                cmbToAccount.IsEnabled = false;
+                txtStatus.Text = "У клиента нет активных счетов";
+            }
+        }
+
+        private void CmbFromAccount_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedFromAccount = cmbFromAccount.SelectedItem as Account;
+
+            if (cmbToAccount.ItemsSource != null)
+            {
+                var accounts = cmbToAccount.ItemsSource.Cast<Account>().ToList();
+                var filteredAccounts = accounts.Where(a => a.Id != (_selectedFromAccount?.Id ?? 0)).ToList();
+                cmbToAccount.ItemsSource = filteredAccounts;
+
+                if (filteredAccounts.Any())
+                {
+                    cmbToAccount.SelectedIndex = 0;
+                    _selectedToAccount = filteredAccounts.First();
+                }
+                else
+                {
+                    _selectedToAccount = null;
+                }
+            }
+        }
+
+        private async void BtnChangeClient_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new ClientSelectionDialog();
             dialog.Owner = Window.GetWindow(this);
@@ -84,180 +138,319 @@ namespace BankSystem.Views
             if (dialog.ShowDialog() == true && dialog.SelectedClient != null)
             {
                 _selectedClient = dialog.SelectedClient;
-                await LoadClientAccounts();
+                await LoadClientInfo();
+                ClearForm();
+                txtStatus.Text = "Клиент успешно изменен";
             }
         }
 
-        private void CmbFromAccount_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void BtnDeposit_Click(object sender, RoutedEventArgs e)
         {
-            if (cmbFromAccount.SelectedItem is Account selectedAccount)
+            if (_selectedFromAccount == null)
             {
-                txtCurrentBalance.Visibility = Visibility.Visible;
-                txtCurrentBalance.Text = $"Доступно: {selectedAccount.Balance:N2} {selectedAccount.Currency}";
-                txtCurrentBalance.Foreground = selectedAccount.Balance > 0 ?
-                    System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
-            }
-            else
-            {
-                txtCurrentBalance.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        private async void BtnTransfer_Click(object sender, RoutedEventArgs e)
-        {
-            // Проверяем выбранные счета
-            if (cmbFromAccount.SelectedItem == null)
-            {
-                ShowError("Выберите счет списания");
+                MessageBox.Show("Выберите счет для пополнения!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (cmbToAccount.SelectedItem == null)
-            {
-                ShowError("Выберите счет получения");
-                return;
-            }
-
-            // Проверяем сумму
             if (!decimal.TryParse(txtAmount.Text, out decimal amount) || amount <= 0)
             {
-                ShowError("Введите корректную сумму перевода");
+                MessageBox.Show("Введите корректную сумму!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-            var fromAccount = cmbFromAccount.SelectedItem as Account;
-            var toAccount = cmbToAccount.SelectedItem as Account;
-
-            // Проверяем, что счета разные
-            if (fromAccount.Id == toAccount.Id)
-            {
-                ShowError("Нельзя перевести деньги на тот же счет");
-                return;
-            }
-
-            loadingOverlay.Visibility = Visibility.Visible;
-            txtError.Visibility = Visibility.Collapsed;
 
             try
             {
-                var result = await App.Database.TransferMoneyWithDetailsAsync(
-                    fromAccount.AccountNumber,
-                    toAccount.AccountNumber,
+                loadingOverlay.Visibility = Visibility.Visible;
+
+                var result = await _databaseService.DepositToAccountAsync(
+                    _selectedFromAccount.AccountNumber,
                     amount,
-                    txtDescription.Text,
-                    App.Session.CurrentUser?.Id ?? 1);
+                    string.IsNullOrEmpty(txtDescription.Text) ? "Пополнение счета" : txtDescription.Text,
+                    App.Session.CurrentUser?.Id ?? 1
+                );
 
                 if (result.Success)
                 {
+                    txtStatus.Text = result.Message;
+                    await LoadAccounts();
+                    ClearForm();
                     MessageBox.Show(result.Message, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    // Обновляем балансы счетов
-                    await LoadClientAccounts();
-
-                    // Очищаем форму
-                    txtAmount.Text = "0";
-                    txtDescription.Text = "";
-                    cmbFromAccount.SelectedItem = null;
-                    cmbToAccount.SelectedItem = null;
-
-                    // Обновляем историю
-                    await LoadTransactionHistory();
                 }
                 else
                 {
-                    ShowError(result.Message);
+                    txtStatus.Text = result.Message;
+                    MessageBox.Show(result.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                ShowError($"Ошибка перевода: {ex.Message}");
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Ошибка: " + ex.Message;
             }
             finally
             {
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
-        private async void BtnDeposit_Click(object sender, RoutedEventArgs e)
+
+        private async void BtnTransfer_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedClient == null)
+            if (_selectedFromAccount == null)
             {
-                MessageBox.Show("Сначала выберите клиента", "Внимание",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите счет списания!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (_accounts == null || _accounts.Count == 0)
+            if (_selectedToAccount == null)
             {
-                MessageBox.Show("У клиента нет активных счетов", "Внимание",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите счет получателя!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            var dialog = new DepositDialog(_accounts);
-            dialog.Owner = Window.GetWindow(this);
+            if (_selectedFromAccount.Id == _selectedToAccount.Id)
+            {
+                MessageBox.Show("Нельзя перевести деньги на тот же счет!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-            if (dialog.ShowDialog() == true && dialog.Success)
+            if (!decimal.TryParse(txtAmount.Text, out decimal amount) || amount <= 0)
+            {
+                MessageBox.Show("Введите корректную сумму!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Проверка для перевода на кредитный счет
+            if (_selectedToAccount.AccountType == "credit")
+            {
+                decimal debt = Math.Abs(_selectedToAccount.Balance);
+                if (amount > debt)
+                {
+                    var result = MessageBox.Show($"Сумма платежа ({amount:N2} ₽) превышает задолженность ({debt:N2} ₽).\n" +
+                        $"Будет погашена только задолженность. Продолжить?", "Предупреждение",
+                        MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (result != MessageBoxResult.Yes) return;
+                    amount = debt;
+                }
+            }
+
+            try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
 
-                try
+                var result = await _databaseService.TransferMoneyWithDetailsAsync(
+                    _selectedFromAccount.AccountNumber,
+                    _selectedToAccount.AccountNumber,
+                    amount,
+                    txtDescription.Text,
+                    App.Session.CurrentUser?.Id ?? 1
+                );
+
+                if (result.Success)
                 {
-                    var result = await App.Database.DepositToAccountAsync(
-                        dialog.TargetAccountNumber,
-                        dialog.Amount,
-                        $"Пополнение через оператора",
-                        App.Session.CurrentUser?.Id ?? 1);
+                    txtStatus.Text = result.Message;
+                    await LoadAccounts();
+                    ClearForm();
+                    MessageBox.Show(result.Message, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    txtStatus.Text = result.Message;
+                    MessageBox.Show(result.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Ошибка: " + ex.Message;
+            }
+            finally
+            {
+                loadingOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void BtnMinPayment_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedCreditAccount == null)
+            {
+                MessageBox.Show("Кредитный счет не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            decimal debt = Math.Abs(_selectedCreditAccount.Balance);
+            decimal minPayment = Math.Max(debt * 0.05m, 1000);
+            minPayment = Math.Min(minPayment, debt); // Не больше суммы долга
+
+            if (debt <= 0)
+            {
+                MessageBox.Show("У вас нет задолженности по кредиту!", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Ищем счет для списания (текущий или сберегательный)
+            var accounts = await _databaseService.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
+            var sourceAccount = accounts.FirstOrDefault(a => a.AccountType != "credit" && a.Balance >= minPayment && a.StatusCode == "active");
+
+            if (sourceAccount == null)
+            {
+                MessageBox.Show($"Недостаточно средств для минимального платежа ({minPayment:N2} ₽)!\n" +
+                    "Пополните счет или выберите другой способ оплаты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                loadingOverlay.Visibility = Visibility.Visible;
+
+                var result = await _databaseService.TransferMoneyWithDetailsAsync(
+                    sourceAccount.AccountNumber,
+                    _selectedCreditAccount.AccountNumber,
+                    minPayment,
+                    "Минимальный платеж по кредиту",
+                    App.Session.CurrentUser?.Id ?? 1
+                );
+
+                if (result.Success)
+                {
+                    txtStatus.Text = $"Минимальный платеж {minPayment:N2} ₽ выполнен!";
+                    await LoadAccounts();
+                    MessageBox.Show($"Минимальный платеж {minPayment:N2} ₽ успешно списан со счета {sourceAccount.AccountNumber}\n" +
+                        $"Остаток задолженности: {Math.Abs(_selectedCreditAccount.Balance - minPayment):N2} ₽",
+                        "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    txtStatus.Text = result.Message;
+                    MessageBox.Show(result.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                loadingOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void BtnFullPayment_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedCreditAccount == null)
+            {
+                MessageBox.Show("Кредитный счет не найден!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            decimal debt = Math.Abs(_selectedCreditAccount.Balance);
+
+            if (debt <= 0)
+            {
+                MessageBox.Show("У вас нет задолженности по кредиту!", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Ищем счета для списания
+            var accounts = await _databaseService.GetAllClientAccountsWithBalanceAsync(_selectedClient.Id);
+            var sourceAccounts = accounts.Where(a => a.AccountType != "credit" && a.Balance > 0 && a.StatusCode == "active").ToList();
+
+            decimal totalBalance = sourceAccounts.Sum(a => a.Balance);
+
+            if (totalBalance < debt)
+            {
+                MessageBox.Show($"Недостаточно средств для полного погашения кредита!\n" +
+                    $"Необходимо: {debt:N2} ₽\n" +
+                    $"Доступно: {totalBalance:N2} ₽\n\n" +
+                    $"Внесите дополнительные средства на счета.",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                loadingOverlay.Visibility = Visibility.Visible;
+
+                decimal remainingDebt = debt;
+                bool success = true;
+
+                foreach (var sourceAccount in sourceAccounts.OrderByDescending(a => a.Balance))
+                {
+                    if (remainingDebt <= 0) break;
+
+                    decimal paymentAmount = Math.Min(sourceAccount.Balance, remainingDebt);
+
+                    var result = await _databaseService.TransferMoneyWithDetailsAsync(
+                        sourceAccount.AccountNumber,
+                        _selectedCreditAccount.AccountNumber,
+                        paymentAmount,
+                        "Погашение кредита",
+                        App.Session.CurrentUser?.Id ?? 1
+                    );
 
                     if (result.Success)
                     {
-                        MessageBox.Show(result.Message, "Успех",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-
-                        // Обновляем данные
-                        await LoadClientAccounts();
+                        remainingDebt -= paymentAmount;
+                        txtStatus.Text = $"Погашение кредита: списано {paymentAmount:N2} ₽ со счета {sourceAccount.AccountNumber}";
                     }
                     else
                     {
-                        MessageBox.Show(result.Message, "Ошибка",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        success = false;
+                        MessageBox.Show($"Ошибка при списании со счета {sourceAccount.AccountNumber}: {result.Message}",
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        break;
                     }
                 }
-                catch (Exception ex)
+
+                if (success && remainingDebt <= 0)
                 {
-                    MessageBox.Show($"Ошибка пополнения: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    await LoadAccounts();
+                    MessageBox.Show($"Кредит полностью погашен!\n\nОбщая сумма погашения: {debt:N2} ₽",
+                        "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                finally
+                else if (success && remainingDebt > 0)
                 {
-                    loadingOverlay.Visibility = Visibility.Collapsed;
+                    MessageBox.Show($"Частично погашено: {debt - remainingDebt:N2} ₽\n" +
+                        $"Остаток задолженности: {remainingDebt:N2} ₽",
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
         private void BtnClear_Click(object sender, RoutedEventArgs e)
         {
-            txtAmount.Text = "0";
+            ClearForm();
+            txtStatus.Text = "Форма очищена";
+        }
+
+        private void ClearForm()
+        {
+            txtAmount.Text = "";
             txtDescription.Text = "";
-            cmbFromAccount.SelectedItem = null;
-            cmbToAccount.SelectedItem = null;
-            txtError.Visibility = Visibility.Collapsed;
-        }
 
-        private void ShowError(string message)
-        {
-            txtError.Text = message;
-            txtError.Visibility = Visibility.Visible;
-        }
-
-        private void TxtAmount_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
-        {
-            // Разрешаем только цифры, точку и запятую
-            foreach (char c in e.Text)
+            if (cmbFromAccount.ItemsSource != null && cmbFromAccount.Items.Cast<object>().Any())
             {
-                if (!char.IsDigit(c) && c != '.' && c != ',')
+                cmbFromAccount.SelectedIndex = 0;
+            }
+        }
+
+        private void TxtAmount_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Проверяем, что вводится число
+            if (decimal.TryParse(txtAmount.Text, out decimal amount) && amount > 0 && _selectedCreditAccount != null)
+            {
+                decimal debt = Math.Abs(_selectedCreditAccount.Balance);
+                if (amount > debt)
                 {
-                    e.Handled = true;
-                    return;
+                    txtAmount.Text = debt.ToString();
+                    txtAmount.Select(txtAmount.Text.Length, 0);
                 }
             }
         }

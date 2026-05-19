@@ -2,41 +2,154 @@
 
 namespace BankSystem.Models
 {
-    public class Account : BaseEntity
+    public class Account
     {
+        public int Id { get; set; }
         public string AccountNumber { get; set; }
-        public string AccountType { get; set; }
+        public string AccountType { get; set; } // current, saving, credit
         public string AccountName { get; set; }
         public int ClientId { get; set; }
-        public string ClientName { get; set; }
         public decimal Balance { get; set; }
-        public string Currency { get; set; } = "RUB";
-        public string Status { get; set; } = "active";
+        public string Currency { get; set; }
+        public string Status { get; set; }
         public string StatusCode { get; set; }
-        public DateTime OpeningDate { get; set; } = DateTime.Now;
-        public DateTime? ClosingDate { get; set; }
-        public decimal? InterestRate { get; set; }
-        public decimal? OverdraftLimit { get; set; }
-        public new int? CreatedBy { get; set; }
-        public bool IsDeleted { get; set; }
+        public DateTime OpeningDate { get; set; }
 
-        private string _displayName;
+        // Свойство для отображения типа счета на русском
+        public string AccountTypeName
+        {
+            get
+            {
+                if (AccountType == "current")
+                {
+                    return "Текущий счет";
+                }
+                else if (AccountType == "saving")
+                {
+                    return "Сберегательный счет";
+                }
+                else if (AccountType == "credit")
+                {
+                    return "Кредитный счет";
+                }
+                else
+                {
+                    return AccountType;
+                }
+            }
+        }
 
+        // Свойство для отображения в ComboBox
         public string DisplayName
         {
             get
             {
-                if (string.IsNullOrEmpty(_displayName))
-                {
-                    return $"{AccountName} - {AccountNumber} - {Balance:N2} {Currency}";
-                }
-                return _displayName;
+                return AccountNumber + " (" + AccountTypeName + ")";
             }
-            set => _displayName = value;
         }
 
-        public string FullDisplayName => $"{AccountName} - {AccountNumber} - {Balance:N2} {Currency}";
+        // Свойство для отображения баланса с учетом знака
+        public string FormattedBalance
+        {
+            get
+            {
+                if (AccountType == "credit")
+                {
+                    return "- " + Math.Abs(Balance).ToString("N2") + " ₽";
+                }
+                else
+                {
+                    return Balance.ToString("N2") + " ₽";
+                }
+            }
+        }
 
-        public string ShortDisplayName => $"{AccountName} - {Balance:N2} {Currency}";
+        // Свойство для отображения абсолютного значения баланса
+        public decimal AbsoluteBalance
+        {
+            get
+            {
+                return Math.Abs(Balance);
+            }
+        }
+
+        // Цвет баланса в зависимости от типа счета
+        public string BalanceColor
+        {
+            get
+            {
+                if (AccountType == "credit")
+                {
+                    return "Red";
+                }
+                else if (Balance > 0)
+                {
+                    return "Green";
+                }
+                else if (Balance == 0)
+                {
+                    return "Gray";
+                }
+                else
+                {
+                    return "Black";
+                }
+            }
+        }
+
+        // Статус на русском
+        public string StatusName
+        {
+            get
+            {
+                if (StatusCode == "active")
+                {
+                    return "Активен";
+                }
+                else if (StatusCode == "closed")
+                {
+                    return "Закрыт";
+                }
+                else if (StatusCode == "blocked")
+                {
+                    return "Заблокирован";
+                }
+                else
+                {
+                    return Status;
+                }
+            }
+        }
+
+        // Проверка, является ли счет кредитным
+        public bool IsCreditAccount
+        {
+            get
+            {
+                return AccountType == "credit";
+            }
+        }
+
+        // Проверка, является ли счет активным
+        public bool IsActive
+        {
+            get
+            {
+                return StatusCode == "active";
+            }
+        }
+
+        // Сумма задолженности по кредиту (только для кредитных счетов)
+        public decimal CreditDebt
+        {
+            get
+            {
+                if (AccountType == "credit" && Balance < 0)
+                {
+                    return Math.Abs(Balance);
+                }
+                return 0;
+            }
+        }
     }
 }

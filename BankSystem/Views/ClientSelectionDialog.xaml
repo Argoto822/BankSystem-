@@ -1,7 +1,7 @@
 ﻿<Window x:Class="BankSystem.Views.ClientSelectionDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Выбор клиента" Height="500" Width="600"
+        Title="Выбор клиента для оформления кредита" Height="500" Width="800"
         WindowStartupLocation="CenterOwner">
 
     <Grid Margin="10">
@@ -11,27 +11,25 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBox x:Name="txtSearch" Margin="0,0,0,10" Tag="Поиск клиента..."
-                 GotFocus="TxtSearch_GotFocus" LostFocus="TxtSearch_LostFocus"
-                 KeyDown="TxtSearch_KeyDown"/>
+        <TextBox x:Name="txtSearch" Margin="5" Padding="8" FontSize="14"
+                 TextChanged="TxtSearch_TextChanged" Tag="Поиск по ФИО, телефону, паспорту или email..."/>
 
-        <DataGrid x:Name="dgClients" Grid.Row="1" AutoGenerateColumns="False"
-                  IsReadOnly="True" SelectionMode="Single"
-                  MouseDoubleClick="DgClients_MouseDoubleClick">
+        <DataGrid x:Name="dgClients" Grid.Row="1" Margin="5" AutoGenerateColumns="False" 
+                  IsReadOnly="True" SelectionMode="Single" AlternatingRowBackground="#F9F9F9">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
                 <DataGridTextColumn Header="ФИО" Binding="{Binding FullName}" Width="200"/>
                 <DataGridTextColumn Header="Телефон" Binding="{Binding Phone}" Width="120"/>
-                <DataGridTextColumn Header="Паспорт/ИНН" Binding="{Binding PassportInn}" Width="120"/>
+                <DataGridTextColumn Header="Паспорт/ИНН" Binding="{Binding Passport}" Width="100"/>
+                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="150"/>
+                <DataGridTextColumn Header="Дата регистрации" Binding="{Binding RegistrationDate, StringFormat=dd.MM.yyyy}" Width="120"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" 
-                    HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="Выбрать" Width="80" Height="30" 
-                    Click="BtnSelect_Click" Margin="0,0,10,0"/>
-            <Button Content="Отмена" Width="80" Height="30" 
-                    Click="BtnCancel_Click"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
+            <Button Content="Отмена" Click="Cancel_Click" Width="100" Height="35" Margin="5" Cursor="Hand"/>
+            <Button Content="Выбрать клиента" Click="Select_Click" Width="120" Height="35" Margin="5" 
+                    Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -1,28 +1,61 @@
-﻿using System.Windows;
+﻿using BankSystem.Services;
+using System;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace BankSystem.Views
 {
     public partial class OpenAccountDialog : Window
     {
-        public string SelectedAccountType { get; private set; }
+        private DatabaseService _databaseService;
+        private int _clientId;
 
         public OpenAccountDialog()
         {
             InitializeComponent();
+            _databaseService = new DatabaseService();
+            cmbAccountType.SelectedIndex = 0;
         }
 
-        private void BtnOk_Click(object sender, RoutedEventArgs e)
+        public void SetClientId(int clientId)
         {
-            if (cmbAccountType.SelectedItem is ComboBoxItem item)
+            _clientId = clientId;
+        }
+
+        private async void Open_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtAccountName.Text))
             {
-                SelectedAccountType = item.Tag.ToString();
-                DialogResult = true;
-                Close();
+                MessageBox.Show("Введите название счета!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                string accountType = (cmbAccountType.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "current";
+                string accountName = txtAccountName.Text.Trim();
+                string currency = (cmbCurrency.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "RUB";
+
+                bool result = await _databaseService.OpenAccountAsync(_clientId, accountType, App.Session.CurrentUser?.Id ?? 1);
+
+                // Дополнительное обновление названия и валюты счета
+                if (result)
+                {
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка при открытии счета!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void BtnCancel_Click(object sender, RoutedEventArgs e)
+        private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
             Close();

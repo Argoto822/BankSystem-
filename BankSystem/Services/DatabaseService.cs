@@ -27,7 +27,6 @@ namespace BankSystem.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"✗ Ошибка подключения: {ex.Message}");
-                MessageBox.Show($"Ошибка подключения к БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -83,7 +82,6 @@ namespace BankSystem.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"GetClients error: {ex.Message}");
-                MessageBox.Show($"Ошибка загрузки клиентов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             return clients;
         }
@@ -97,8 +95,7 @@ namespace BankSystem.Services
                 {
                     string query = @"
                         SELECT id_client, client_type, full_name, passport_inn, phone, email, address, registration_date, is_active 
-                        FROM Clients 
-                        WHERE is_active = 0";
+                        FROM Clients WHERE is_active = 0";
 
                     if (!string.IsNullOrWhiteSpace(search))
                         query += " AND (full_name LIKE @search OR phone LIKE @search OR passport_inn LIKE @search)";
@@ -137,109 +134,6 @@ namespace BankSystem.Services
                 System.Diagnostics.Debug.WriteLine($"GetDeletedClients error: {ex.Message}");
             }
             return clients;
-        }
-
-        // =============================================
-        // КЛИЕНТЫ - УДАЛЕНИЕ И ВОССТАНОВЛЕНИЕ
-        // =============================================
-        public async Task<bool> SoftDeleteClientAsync(int clientId, int userId)
-        {
-            try
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Clients WHERE id_client = @clientId AND is_active = 1", connection);
-                    checkCmd.Parameters.AddWithValue("@clientId", clientId);
-                    int exists = (int)await checkCmd.ExecuteScalarAsync();
-
-                    if (exists == 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Клиент {clientId} не найден или уже удален");
-                        return false;
-                    }
-
-                    var updateClientCmd = new SqlCommand(@"
-                        UPDATE Clients 
-                        SET is_active = 0, updated_at = GETDATE() 
-                        WHERE id_client = @clientId", connection);
-                    updateClientCmd.Parameters.AddWithValue("@clientId", clientId);
-                    int rowsAffected = await updateClientCmd.ExecuteNonQueryAsync();
-
-                    try
-                    {
-                        var updateAccountsCmd = new SqlCommand(@"
-                            UPDATE Accounts 
-                            SET status = 'closed', updated_at = GETDATE()
-                            WHERE id_client = @clientId AND status = 'active'", connection);
-                        updateAccountsCmd.Parameters.AddWithValue("@clientId", clientId);
-                        await updateAccountsCmd.ExecuteNonQueryAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Ошибка при обновлении счетов: {ex.Message}");
-                    }
-
-                    return rowsAffected > 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"SoftDeleteClient error: {ex.Message}");
-                MessageBox.Show($"Ошибка при удалении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return false;
-            }
-        }
-
-        public async Task<bool> RestoreClientAsync(int clientId, int userId)
-        {
-            try
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Clients WHERE id_client = @clientId AND is_active = 0", connection);
-                    checkCmd.Parameters.AddWithValue("@clientId", clientId);
-                    int exists = (int)await checkCmd.ExecuteScalarAsync();
-
-                    if (exists == 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Клиент {clientId} не найден или уже активен");
-                        return false;
-                    }
-
-                    var updateClientCmd = new SqlCommand(@"
-                        UPDATE Clients 
-                        SET is_active = 1, updated_at = GETDATE() 
-                        WHERE id_client = @clientId", connection);
-                    updateClientCmd.Parameters.AddWithValue("@clientId", clientId);
-                    int rowsAffected = await updateClientCmd.ExecuteNonQueryAsync();
-
-                    try
-                    {
-                        var updateAccountsCmd = new SqlCommand(@"
-                            UPDATE Accounts 
-                            SET status = 'active', updated_at = GETDATE()
-                            WHERE id_client = @clientId AND status = 'closed'", connection);
-                        updateAccountsCmd.Parameters.AddWithValue("@clientId", clientId);
-                        await updateAccountsCmd.ExecuteNonQueryAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Ошибка при восстановлении счетов: {ex.Message}");
-                    }
-
-                    return rowsAffected > 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"RestoreClient error: {ex.Message}");
-                MessageBox.Show($"Ошибка при восстановлении: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return false;
-            }
         }
 
         // =============================================
@@ -320,36 +214,140 @@ namespace BankSystem.Services
             }
         }
 
-        public async Task<bool> UpdateClientAsync(Client client)
+        // =============================================
+        // КРЕДИТЫ - СОХРАНЕНИЕ
+        // =============================================
+        public async Task<bool> SaveCreditAsync(CreditAccount credit)
         {
             try
             {
                 using (var connection = new SqlConnection(_connectionString))
                 {
+                    await connection.OpenAsync();
+
+                    string createTableQuery = @"
+                        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Credits' AND xtype='U')
+                        CREATE TABLE Credits (
+                            Id INT IDENTITY(1,1) PRIMARY KEY,
+                            ClientId INT NOT NULL,
+                            ClientFullName NVARCHAR(200) NOT NULL,
+                            AccountNumber NVARCHAR(50) NOT NULL,
+                            Amount DECIMAL(18,2) NOT NULL,
+                            InterestRate DECIMAL(18,2) NOT NULL,
+                            TermMonths INT NOT NULL,
+                            MonthlyPayment DECIMAL(18,2) NOT NULL,
+                            RemainingDebt DECIMAL(18,2) NOT NULL,
+                            IssueDate DATETIME NOT NULL,
+                            NextPaymentDate DATETIME NOT NULL,
+                            Status NVARCHAR(20) NOT NULL,
+                            PaymentType NVARCHAR(50) NOT NULL,
+                            TotalPaid DECIMAL(18,2) NOT NULL,
+                            TotalInterestPaid DECIMAL(18,2) NOT NULL,
+                            Purpose NVARCHAR(500) NULL,
+                            CreatedAt DATETIME DEFAULT GETDATE()
+                        )";
+
+                    using (var createCmd = new SqlCommand(createTableQuery, connection))
+                    {
+                        await createCmd.ExecuteNonQueryAsync();
+                    }
+
                     string query = @"
-                        UPDATE Clients 
-                        SET client_type = @client_type, full_name = @full_name, passport_inn = @passport_inn,
-                            phone = @phone, email = @email, address = @address, updated_at = GETDATE()
-                        WHERE id_client = @id_client";
+                        INSERT INTO Credits (ClientId, ClientFullName, AccountNumber, Amount, InterestRate, 
+                             TermMonths, MonthlyPayment, RemainingDebt, IssueDate, NextPaymentDate, Status, 
+                             PaymentType, TotalPaid, TotalInterestPaid, Purpose, CreatedAt) 
+                        VALUES (@ClientId, @ClientFullName, @AccountNumber, @Amount, @InterestRate, 
+                             @TermMonths, @MonthlyPayment, @RemainingDebt, @IssueDate, @NextPaymentDate, @Status, 
+                             @PaymentType, @TotalPaid, @TotalInterestPaid, @Purpose, @CreatedAt)";
 
                     using (var command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@client_type", client.ClientType);
-                        command.Parameters.AddWithValue("@full_name", client.FullName);
-                        command.Parameters.AddWithValue("@passport_inn", client.PassportInn);
-                        command.Parameters.AddWithValue("@phone", client.Phone);
-                        command.Parameters.AddWithValue("@email", client.Email ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@address", client.Address ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@id_client", client.Id);
+                        command.Parameters.AddWithValue("@ClientId", credit.ClientId);
+                        command.Parameters.AddWithValue("@ClientFullName", credit.ClientFullName ?? "");
+                        command.Parameters.AddWithValue("@AccountNumber", credit.AccountNumber);
+                        command.Parameters.AddWithValue("@Amount", credit.Amount);
+                        command.Parameters.AddWithValue("@InterestRate", credit.InterestRate);
+                        command.Parameters.AddWithValue("@TermMonths", credit.TermMonths);
+                        command.Parameters.AddWithValue("@MonthlyPayment", credit.MonthlyPayment);
+                        command.Parameters.AddWithValue("@RemainingDebt", credit.RemainingDebt);
+                        command.Parameters.AddWithValue("@IssueDate", credit.IssueDate);
+                        command.Parameters.AddWithValue("@NextPaymentDate", credit.NextPaymentDate);
+                        command.Parameters.AddWithValue("@Status", credit.Status ?? "Active");
+                        command.Parameters.AddWithValue("@PaymentType", credit.PaymentType ?? "Аннуитетный");
+                        command.Parameters.AddWithValue("@TotalPaid", credit.TotalPaid);
+                        command.Parameters.AddWithValue("@TotalInterestPaid", credit.TotalInterestPaid);
+                        command.Parameters.AddWithValue("@Purpose", (object)credit.Purpose ?? DBNull.Value);
+                        command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
 
-                        await connection.OpenAsync();
-                        return await command.ExecuteNonQueryAsync() > 0;
+                        int rowsAffected = await command.ExecuteNonQueryAsync();
+                        return rowsAffected > 0;
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"UpdateClientAsync error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка сохранения кредита: {ex.Message}");
+                return false;
+            }
+        }
+
+        // =============================================
+        // КЛИЕНТЫ - УДАЛЕНИЕ И ВОССТАНОВЛЕНИЕ
+        // =============================================
+        public async Task<bool> SoftDeleteClientAsync(int clientId, int userId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Clients WHERE id_client = @clientId AND is_active = 1", connection);
+                    checkCmd.Parameters.AddWithValue("@clientId", clientId);
+                    int exists = (int)await checkCmd.ExecuteScalarAsync();
+
+                    if (exists == 0) return false;
+
+                    var updateClientCmd = new SqlCommand(@"
+                        UPDATE Clients SET is_active = 0, updated_at = GETDATE() WHERE id_client = @clientId", connection);
+                    updateClientCmd.Parameters.AddWithValue("@clientId", clientId);
+                    int rowsAffected = await updateClientCmd.ExecuteNonQueryAsync();
+
+                    return rowsAffected > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SoftDeleteClient error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> RestoreClientAsync(int clientId, int userId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Clients WHERE id_client = @clientId AND is_active = 0", connection);
+                    checkCmd.Parameters.AddWithValue("@clientId", clientId);
+                    int exists = (int)await checkCmd.ExecuteScalarAsync();
+
+                    if (exists == 0) return false;
+
+                    var updateClientCmd = new SqlCommand(@"
+                        UPDATE Clients SET is_active = 1, updated_at = GETDATE() WHERE id_client = @clientId", connection);
+                    updateClientCmd.Parameters.AddWithValue("@clientId", clientId);
+                    int rowsAffected = await updateClientCmd.ExecuteNonQueryAsync();
+
+                    return rowsAffected > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RestoreClient error: {ex.Message}");
                 return false;
             }
         }
@@ -403,6 +401,11 @@ namespace BankSystem.Services
             return accounts;
         }
 
+        public async Task<List<Account>> GetAllClientAccountsWithBalanceAsync(int clientId)
+        {
+            return await GetClientAccountsAsync(clientId);
+        }
+
         public async Task<bool> OpenAccountAsync(int clientId, string accountType, int userId)
         {
             try
@@ -435,56 +438,6 @@ namespace BankSystem.Services
                 System.Diagnostics.Debug.WriteLine($"OpenAccount error: {ex.Message}");
                 return false;
             }
-        }
-
-        // =============================================
-        // ПОЛУЧЕНИЕ ВСЕХ СЧЕТОВ КЛИЕНТА С БАЛАНСАМИ
-        // =============================================
-        public async Task<List<Account>> GetAllClientAccountsWithBalanceAsync(int clientId)
-        {
-            var accounts = new List<Account>();
-            try
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    string query = @"
-                        SELECT id_account, account_number, account_type, account_name, balance, currency, status, opening_date
-                        FROM Accounts 
-                        WHERE id_client = @clientId AND status = 'active'
-                        ORDER BY account_type DESC";
-
-                    using (var command = new SqlCommand(query, connection))
-                    {
-                        command.Parameters.AddWithValue("@clientId", clientId);
-                        await connection.OpenAsync();
-                        using (var reader = await command.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                string accountType = reader["account_type"].ToString();
-                                var account = new Account
-                                {
-                                    Id = Convert.ToInt32(reader["id_account"]),
-                                    AccountNumber = reader["account_number"].ToString(),
-                                    AccountType = accountType,
-                                    AccountName = reader["account_name"]?.ToString() ?? (accountType == "current" ? "Текущий" : "Сберегательный"),
-                                    Balance = Convert.ToDecimal(reader["balance"]),
-                                    Currency = reader["currency"].ToString(),
-                                    Status = reader["status"].ToString() == "active" ? "Активен" : "Заблокирован",
-                                    StatusCode = reader["status"].ToString(),
-                                    OpeningDate = Convert.ToDateTime(reader["opening_date"])
-                                };
-                                accounts.Add(account);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"GetAllClientAccountsWithBalance error: {ex.Message}");
-            }
-            return accounts;
         }
 
         // =============================================
@@ -596,9 +549,6 @@ namespace BankSystem.Services
             }
         }
 
-        // =============================================
-        // ПЕРЕВОДЫ С ПРОВЕРКОЙ БАЛАНСА И ДЕТАЛЬНЫМ ОТВЕТОМ
-        // =============================================
         public async Task<(bool Success, string Message, decimal NewBalance)> TransferMoneyWithDetailsAsync(
             string fromAccount, string toAccount, decimal amount, string description, int userId)
         {
@@ -611,9 +561,7 @@ namespace BankSystem.Services
                     {
                         try
                         {
-                            var checkBalanceCmd = new SqlCommand(
-                                "SELECT balance FROM Accounts WHERE account_number = @accountNumber",
-                                connection, transaction);
+                            var checkBalanceCmd = new SqlCommand("SELECT balance FROM Accounts WHERE account_number = @accountNumber", connection, transaction);
                             checkBalanceCmd.Parameters.AddWithValue("@accountNumber", fromAccount);
                             decimal fromBalance = (decimal)await checkBalanceCmd.ExecuteScalarAsync();
 
@@ -622,16 +570,12 @@ namespace BankSystem.Services
                                 return (false, $"Недостаточно средств. Доступно: {fromBalance:N2} ₽", fromBalance);
                             }
 
-                            var debitCmd = new SqlCommand(
-                                "UPDATE Accounts SET balance = balance - @amount WHERE account_number = @accountNumber",
-                                connection, transaction);
+                            var debitCmd = new SqlCommand("UPDATE Accounts SET balance = balance - @amount WHERE account_number = @accountNumber", connection, transaction);
                             debitCmd.Parameters.AddWithValue("@amount", amount);
                             debitCmd.Parameters.AddWithValue("@accountNumber", fromAccount);
                             await debitCmd.ExecuteNonQueryAsync();
 
-                            var creditCmd = new SqlCommand(
-                                "UPDATE Accounts SET balance = balance + @amount WHERE account_number = @accountNumber",
-                                connection, transaction);
+                            var creditCmd = new SqlCommand("UPDATE Accounts SET balance = balance + @amount WHERE account_number = @accountNumber", connection, transaction);
                             creditCmd.Parameters.AddWithValue("@amount", amount);
                             creditCmd.Parameters.AddWithValue("@accountNumber", toAccount);
                             await creditCmd.ExecuteNonQueryAsync();
@@ -642,8 +586,7 @@ namespace BankSystem.Services
                                 INSERT INTO Transactions (from_account, to_account, amount, description, type, status, created_by, transaction_date)
                                 VALUES ((SELECT id_account FROM Accounts WHERE account_number = @fromAccount),
                                         (SELECT id_account FROM Accounts WHERE account_number = @toAccount),
-                                        @amount, @description, 'transfer', 'completed', @userId, GETDATE())",
-                                connection, transaction);
+                                        @amount, @description, 'transfer', 'completed', @userId, GETDATE())", connection, transaction);
                             transCmd.Parameters.AddWithValue("@fromAccount", fromAccount);
                             transCmd.Parameters.AddWithValue("@toAccount", toAccount);
                             transCmd.Parameters.AddWithValue("@amount", amount);
@@ -668,9 +611,6 @@ namespace BankSystem.Services
             }
         }
 
-        // =============================================
-        // ПОПОЛНЕНИЕ СЧЕТА (ДЕПОЗИТ)
-        // =============================================
         public async Task<(bool Success, string Message, decimal NewBalance)> DepositToAccountAsync(
             string accountNumber, decimal amount, string description, int userId)
         {
@@ -683,10 +623,7 @@ namespace BankSystem.Services
                     {
                         try
                         {
-                            var checkAccountCmd = new SqlCommand(
-                                @"SELECT id_account, balance, status FROM Accounts 
-                                  WHERE account_number = @accountNumber",
-                                connection, transaction);
+                            var checkAccountCmd = new SqlCommand(@"SELECT id_account, balance, status FROM Accounts WHERE account_number = @accountNumber", connection, transaction);
                             checkAccountCmd.Parameters.AddWithValue("@accountNumber", accountNumber);
 
                             using (var reader = await checkAccountCmd.ExecuteReaderAsync())
@@ -708,9 +645,7 @@ namespace BankSystem.Services
 
                                 decimal newBalance = currentBalance + amount;
 
-                                var depositCmd = new SqlCommand(
-                                    "UPDATE Accounts SET balance = balance + @amount WHERE account_number = @accountNumber",
-                                    connection, transaction);
+                                var depositCmd = new SqlCommand("UPDATE Accounts SET balance = balance + @amount WHERE account_number = @accountNumber", connection, transaction);
                                 depositCmd.Parameters.AddWithValue("@amount", amount);
                                 depositCmd.Parameters.AddWithValue("@accountNumber", accountNumber);
                                 int rowsAffected = await depositCmd.ExecuteNonQueryAsync();
@@ -722,8 +657,7 @@ namespace BankSystem.Services
 
                                 var transCmd = new SqlCommand(@"
                                     INSERT INTO Transactions (to_account, amount, description, type, status, created_by, transaction_date)
-                                    VALUES (@accountId, @amount, @description, 'deposit', 'completed', @userId, GETDATE())",
-                                    connection, transaction);
+                                    VALUES (@accountId, @amount, @description, 'deposit', 'completed', @userId, GETDATE())", connection, transaction);
                                 transCmd.Parameters.AddWithValue("@accountId", accountId);
                                 transCmd.Parameters.AddWithValue("@amount", amount);
                                 transCmd.Parameters.AddWithValue("@description", description ?? "Пополнение счета");
@@ -751,7 +685,6 @@ namespace BankSystem.Services
         // =============================================
         // ПОЛЬЗОВАТЕЛИ
         // =============================================
-
         public async Task<List<User>> GetUsersAsync()
         {
             var users = new List<User>();
@@ -773,14 +706,12 @@ namespace BankSystem.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                bool isActive = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"]);
-
                                 var user = new User
                                 {
                                     Id = Convert.ToInt32(reader["id_user"]),
                                     Login = reader["login"].ToString(),
                                     Email = reader["email"] == DBNull.Value ? null : reader["email"].ToString(),
-                                    IsActive = isActive,
+                                    IsActive = reader["is_active"] != DBNull.Value && Convert.ToBoolean(reader["is_active"]),
                                     CreatedAt = reader["created_at"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(reader["created_at"]),
                                     LastLogin = reader["last_login"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["last_login"]),
                                     RoleId = Convert.ToInt32(reader["id_role"]),
@@ -879,6 +810,192 @@ namespace BankSystem.Services
                 return false;
             }
         }
+        // Добавьте эти методы в конец класса DatabaseService (перед последней закрывающей скобкой)
+
+        // =============================================
+        // КРЕДИТНЫЙ СЧЕТ
+        // =============================================
+        public async Task<(bool Success, string AccountNumber, string Message)> CreateCreditAccountAsync(int clientId, decimal creditAmount, int userId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Генерируем номер кредитного счета
+                            var random = new Random();
+                            string accountNumber = $"45507.810.2.{random.Next(10000000, 99999999)}";
+                            string accountName = "Кредитный счет";
+
+                            // Проверяем, существует ли уже кредитный счет у клиента
+                            var checkCmd = new SqlCommand(
+                                "SELECT COUNT(*) FROM Accounts WHERE id_client = @clientId AND account_type = 'credit' AND status = 'active'",
+                                connection, transaction);
+                            checkCmd.Parameters.AddWithValue("@clientId", clientId);
+                            int existingCount = (int)await checkCmd.ExecuteScalarAsync();
+
+                            if (existingCount > 0)
+                            {
+                                return (false, null, "У клиента уже есть активный кредитный счет");
+                            }
+
+                            // Создаем кредитный счет с отрицательным балансом (сумма кредита)
+                            var insertCmd = new SqlCommand(@"
+                        INSERT INTO Accounts (account_number, account_type, account_name, id_client, balance, currency, status, created_by, opening_date)
+                        VALUES (@accountNumber, 'credit', @accountName, @clientId, -@creditAmount, 'RUB', 'active', @userId, GETDATE());
+                        SELECT SCOPE_IDENTITY();", connection, transaction);
+
+                            insertCmd.Parameters.AddWithValue("@accountNumber", accountNumber);
+                            insertCmd.Parameters.AddWithValue("@accountName", accountName);
+                            insertCmd.Parameters.AddWithValue("@clientId", clientId);
+                            insertCmd.Parameters.AddWithValue("@creditAmount", creditAmount);
+                            insertCmd.Parameters.AddWithValue("@userId", userId);
+
+                            int accountId = Convert.ToInt32(await insertCmd.ExecuteScalarAsync());
+
+                            if (accountId > 0)
+                            {
+                                // Записываем транзакцию выдачи кредита
+                                var transCmd = new SqlCommand(@"
+                            INSERT INTO Transactions (to_account, amount, description, type, status, created_by, transaction_date)
+                            VALUES (@accountId, @amount, @description, 'credit_issue', 'completed', @userId, GETDATE())", connection, transaction);
+                                transCmd.Parameters.AddWithValue("@accountId", accountId);
+                                transCmd.Parameters.AddWithValue("@amount", creditAmount);
+                                transCmd.Parameters.AddWithValue("@description", $"Выдача кредита на сумму {creditAmount:N2} ₽");
+                                transCmd.Parameters.AddWithValue("@userId", userId);
+                                await transCmd.ExecuteNonQueryAsync();
+
+                                transaction.Commit();
+                                return (true, accountNumber, $"Кредитный счет {accountNumber} успешно создан");
+                            }
+                            else
+                            {
+                                transaction.Rollback();
+                                return (false, null, "Ошибка при создании кредитного счета");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            System.Diagnostics.Debug.WriteLine($"CreateCreditAccount error: {ex.Message}");
+                            return (false, null, $"Ошибка: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CreateCreditAccountAsync error: {ex.Message}");
+                return (false, null, $"Ошибка: {ex.Message}");
+            }
+        }
+
+        // =============================================
+        // ПОЛУЧЕНИЕ КРЕДИТНОГО СЧЕТА КЛИЕНТА
+        // =============================================
+        public async Task<Account> GetCreditAccountAsync(int clientId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    string query = @"
+                SELECT id_account, account_number, account_type, account_name, balance, currency, status, opening_date
+                FROM Accounts 
+                WHERE id_client = @clientId AND account_type = 'credit' AND status = 'active'";
+
+                    using (var command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@clientId", clientId);
+                        await connection.OpenAsync();
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                return new Account
+                                {
+                                    Id = Convert.ToInt32(reader["id_account"]),
+                                    AccountNumber = reader["account_number"].ToString(),
+                                    AccountType = reader["account_type"].ToString(),
+                                    AccountName = reader["account_name"].ToString(),
+                                    Balance = Convert.ToDecimal(reader["balance"]),
+                                    Currency = reader["currency"].ToString(),
+                                    Status = reader["status"].ToString() == "active" ? "Активен" : "Заблокирован",
+                                    StatusCode = reader["status"].ToString(),
+                                    OpeningDate = Convert.ToDateTime(reader["opening_date"])
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetCreditAccountAsync error: {ex.Message}");
+                return null;
+            }
+            return null;
+        }
+
+        // =============================================
+        // ВНЕСЕНИЕ ПЛАТЕЖА ПО КРЕДИТУ
+        // =============================================
+        public async Task<(bool Success, string Message, decimal NewBalance)> MakeCreditPaymentAsync(int creditAccountId, decimal paymentAmount, int userId)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Получаем текущий баланс кредитного счета
+                            var getBalanceCmd = new SqlCommand("SELECT balance FROM Accounts WHERE id_account = @accountId", connection, transaction);
+                            getBalanceCmd.Parameters.AddWithValue("@accountId", creditAccountId);
+                            decimal currentBalance = (decimal)await getBalanceCmd.ExecuteScalarAsync();
+
+                            decimal newBalance = currentBalance + paymentAmount; // Прибавляем к отрицательному балансу
+
+                            // Обновляем баланс кредитного счета
+                            var updateCmd = new SqlCommand("UPDATE Accounts SET balance = @newBalance WHERE id_account = @accountId", connection, transaction);
+                            updateCmd.Parameters.AddWithValue("@newBalance", newBalance);
+                            updateCmd.Parameters.AddWithValue("@accountId", creditAccountId);
+                            await updateCmd.ExecuteNonQueryAsync();
+
+                            // Записываем транзакцию платежа
+                            var transCmd = new SqlCommand(@"
+                        INSERT INTO Transactions (to_account, amount, description, type, status, created_by, transaction_date)
+                        VALUES (@accountId, @amount, @description, 'credit_payment', 'completed', @userId, GETDATE())", connection, transaction);
+                            transCmd.Parameters.AddWithValue("@accountId", creditAccountId);
+                            transCmd.Parameters.AddWithValue("@amount", paymentAmount);
+                            transCmd.Parameters.AddWithValue("@description", $"Платеж по кредиту на сумму {paymentAmount:N2} ₽");
+                            transCmd.Parameters.AddWithValue("@userId", userId);
+                            await transCmd.ExecuteNonQueryAsync();
+
+                            transaction.Commit();
+
+                            string statusMessage = newBalance >= 0 ? "Кредит полностью погашен!" : $"Остаток задолженности: {Math.Abs(newBalance):N2} ₽";
+                            return (true, statusMessage, newBalance);
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            return (false, $"Ошибка при внесении платежа: {ex.Message}", 0);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Ошибка: {ex.Message}", 0);
+            }
+        }
 
         // =============================================
         // СТАТИСТИКА И РОЛИ
@@ -949,62 +1066,6 @@ namespace BankSystem.Services
                 System.Diagnostics.Debug.WriteLine($"GetRolesAsync error: {ex.Message}");
             }
             return roles;
-        }
-
-        public async Task<User> AuthenticateTestAsync(string login, string password)
-        {
-            if (login == "admin" && password == "admin123")
-            {
-                return await Task.FromResult(new User
-                {
-                    Id = 1,
-                    Login = "admin",
-                    Email = "admin@bank.local",
-                    RoleName = "Администратор",
-                    IsActive = true
-                });
-            }
-            return await Task.FromResult<User>(null);
-        }
-
-        public async Task<User> AuthenticateAsync(string login, string passwordHash)
-        {
-            try
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                using (var command = new SqlCommand("sp_AuthenticateUser", connection))
-                {
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.Parameters.AddWithValue("@login", login);
-                    command.Parameters.AddWithValue("@password_hash", passwordHash);
-
-                    await connection.OpenAsync();
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        if (await reader.ReadAsync())
-                        {
-                            string status = reader["status"].ToString();
-                            if (status == "SUCCESS")
-                            {
-                                return new User
-                                {
-                                    Id = Convert.ToInt32(reader["id_user"]),
-                                    Login = reader["login"].ToString(),
-                                    Email = reader["email"]?.ToString(),
-                                    RoleName = reader["role"].ToString(),
-                                    IsActive = true
-                                };
-                            }
-                        }
-                    }
-                }
-                return null;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Auth error: {ex.Message}");
-                return null;
-            }
         }
     }
 }

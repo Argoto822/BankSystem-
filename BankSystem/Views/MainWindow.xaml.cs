@@ -35,6 +35,12 @@ namespace BankSystem.Views
             MainContent.Content = _currentControl;
         }
 
+        private void ShowCredit()
+        {
+            _currentControl = new CreditCalculatorView();
+            MainContent.Content = _currentControl;
+        }
+
         private void ShowTransfers()
         {
             _currentControl = new TransfersControl();
@@ -70,6 +76,11 @@ namespace BankSystem.Views
         private void BtnAccounts_Click(object sender, RoutedEventArgs e)
         {
             ShowAccounts();
+        }
+
+        private void BtnCredit_Click(object sender, RoutedEventArgs e)
+        {
+            ShowCredit();
         }
 
         private void BtnTransfers_Click(object sender, RoutedEventArgs e)
